@@ -225,8 +225,8 @@ export default function FeedPage() {
               )}
             </form>
           ) : (
-            <div className="verification-card">
-              <div className="verification-icon">
+            <div className="feed-verification-card">
+              <div className="feed-verification-icon">
                 <ShieldCheck size={22} aria-hidden="true" />
               </div>
               <div>

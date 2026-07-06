@@ -82,7 +82,7 @@ export default function LoginPage() {
             <circle cx="820" cy="520" r="8" />
           </g>
         </svg>
-        <div style={{ position: 'relative' }}>
+        <div className="auth-logo-wrap">
           <Logo size={40} wordSize={24} white />
         </div>
         <h2>{t('login.sideTitle')}</h2>
@@ -95,14 +95,14 @@ export default function LoginPage() {
 
       <div className="auth-form">
         <div className="auth-box">
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <div className="auth-tools">
             <div className="lang">
-              <span className={lang === 'kk' ? 'on' : ''} onClick={() => setLang('kk')}>ҚАЗ</span>
-              <span className={lang === 'ru' ? 'on' : ''} onClick={() => setLang('ru')}>РУС</span>
-              <span className={lang === 'en' ? 'on' : ''} onClick={() => setLang('en')}>ENG</span>
+              <button type="button" className={lang === 'kk' ? 'on' : ''} onClick={() => setLang('kk')}>ҚАЗ</button>
+              <button type="button" className={lang === 'ru' ? 'on' : ''} onClick={() => setLang('ru')}>РУС</button>
+              <button type="button" className={lang === 'en' ? 'on' : ''} onClick={() => setLang('en')}>ENG</button>
             </div>
-            <button className="theme-btn" onClick={toggleTheme} title={t('common.theme')} aria-label={t('common.themeToggle')}>
-              {dark ? <Moon size={20} strokeWidth={2} color="#9BA0B0" /> : <Sun size={20} strokeWidth={2} color="#69728A" />}
+            <button type="button" className="theme-btn" onClick={toggleTheme} title={t('common.theme')} aria-label={t('common.themeToggle')}>
+              {dark ? <Moon size={20} strokeWidth={2} color="currentColor" /> : <Sun size={20} strokeWidth={2} color="currentColor" />}
             </button>
           </div>
 
@@ -111,15 +111,7 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin}>
             {error && (
-              <div className="error-msg" style={{
-                background: 'var(--red-tint)',
-                color: 'var(--red)',
-                padding: '12px 16px',
-                borderRadius: '12px',
-                fontSize: '14px',
-                marginBottom: '16px',
-                border: '1px solid var(--red-soft)'
-              }}>
+              <div className="error-msg">
                 {error}
               </div>
             )}
@@ -152,12 +144,12 @@ export default function LoginPage() {
               <a className="link" href="#">{t('login.forgotPassword')}</a>
             </p>
 
-            <button type="submit" className="btn btn-red" style={{ width: '100%' }} disabled={loading}>
+            <button type="submit" className="btn btn-red btn-block" disabled={loading}>
               {loading ? t('login.loading') : t('login.loginBtn')}
             </button>
           </form>
 
-          <p style={{ textAlign: 'center', fontSize: 14, marginTop: 22 }}>
+          <p className="auth-center-note">
             {t('login.noAccount')} <Link className="link" href="/register">{t('login.signupLink')}</Link>
           </p>
         </div>

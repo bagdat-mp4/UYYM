@@ -109,7 +109,7 @@ export default function Home() {
           {FEATURES.map((f) => (
             <div className="fcard" key={f.titleKey}>
               <div className="fi">
-                <f.Icon size={24} strokeWidth={2} color="#DC2626" />
+                <f.Icon size={24} strokeWidth={2} color="currentColor" />
               </div>
               <h3>{t(f.titleKey)}</h3>
               <p>{t(f.textKey)}</p>
@@ -134,35 +134,24 @@ export default function Home() {
       <section className="unis" id="unis">
         <h2>{t('unis.title')}</h2>
         <p className="sub">{t('unis.subtitle')}</p>
-        <div className="grid3" style={{ marginTop: 44 }}>
+        <div className="uni-grid">
           {UNIS.map((u, i) => (
-            <div className="card" style={{ padding: 22 }} key={u.short}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+            <div className="uni-card" key={u.short}>
+              <div className="uni-card-head">
                 <div
-                  style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 14,
-                    background: u.color,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#fff',
-                    fontWeight: 700,
-                    fontSize: 15,
-                    fontFamily: 'var(--font-poppins)',
-                  }}
+                  className="uni-mark"
+                  style={{ background: u.color }}
                 >
                   {u.short}
                 </div>
                 <div>
-                  <h3 style={{ fontSize: 16, marginBottom: 3 }}>{u.name}</h3>
-                  <div className="mut" style={{ fontSize: 13 }}>
+                  <h3 className="uni-name">{u.name}</h3>
+                  <div className="uni-meta">
                     {u.meta}
                   </div>
                 </div>
               </div>
-              <div className="mut" style={{ fontSize: 13 }}>
+              <div className="uni-status">
                 {i === 0 ? `● 340 ${t('unis.kbtu')}` : `● ${t('unis.soon')}`}
               </div>
             </div>
@@ -172,7 +161,7 @@ export default function Home() {
 
       <section className="feat" id="wait">
         <h2>{t('waitlist.title')}</h2>
-        <p className="mut" style={{ marginTop: 10 }}>
+        <p className="mut wait-subtitle">
           {t('waitlist.subtitle')}
         </p>
         <WaitlistForm />

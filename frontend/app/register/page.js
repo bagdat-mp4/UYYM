@@ -299,7 +299,7 @@ function RegisterContent() {
 
   if (initializing) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="auth-loading-screen">
         {t('common.loading')}
       </div>
     );
@@ -310,7 +310,7 @@ function RegisterContent() {
       <div className="auth">
         <div className="auth-side">
           <Constellation />
-          <div style={{ position: 'relative' }}>
+          <div className="auth-logo-wrap">
             <Logo size={40} wordSize={24} white />
           </div>
           <h2>{t('register.emailConfirmSideTitle')}</h2>
@@ -319,28 +319,20 @@ function RegisterContent() {
         <div className="auth-form">
           <div className="auth-box">
             <h1>{t('register.emailConfirmTitle')}</h1>
-            <p className="sub" style={{ marginBottom: 20 }}>
+            <p className="sub">
               {t('register.emailConfirmSubtitle')}
             </p>
-            <div style={{
-              background: 'var(--red-tint)',
-              color: 'var(--ink-2)',
-              padding: '16px',
-              borderRadius: '12px',
-              fontSize: '14px',
-              marginBottom: '20px',
-              lineHeight: 1.6
-            }}>
-              <p style={{ marginBottom: 10 }}>
-                ✉️ <b>{email}</b>
+            <div className="auth-confirm-panel">
+              <p className="auth-confirm-line">
+                <b>{email}</b>
               </p>
-              <p style={{ marginBottom: 10 }}>
+              <p className="auth-confirm-line">
                 {t('register.emailConfirmStep1')}<br />
                 {t('register.emailConfirmStep2')}<br />
                 {t('register.emailConfirmStep3')}
               </p>
             </div>
-            <Link href="/login" className="btn btn-red" style={{ width: '100%', textAlign: 'center' }}>
+            <Link href="/login" className="btn btn-red btn-block">
               {t('register.emailConfirmed')}
             </Link>
           </div>
@@ -353,7 +345,7 @@ function RegisterContent() {
     <div className="auth">
       <div className="auth-side">
         <Constellation />
-        <div style={{ position: 'relative' }}>
+        <div className="auth-logo-wrap">
           <Logo size={40} wordSize={24} white />
         </div>
         {step === 1 && (
@@ -378,14 +370,14 @@ function RegisterContent() {
 
       <div className="auth-form">
         <div className={`auth-box ${step === 2 ? 'wide' : ''}`}>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <div className="auth-tools">
             <div className="lang">
-              <span className={lang === 'kk' ? 'on' : ''} onClick={() => setLang('kk')}>ҚАЗ</span>
-              <span className={lang === 'ru' ? 'on' : ''} onClick={() => setLang('ru')}>РУС</span>
-              <span className={lang === 'en' ? 'on' : ''} onClick={() => setLang('en')}>ENG</span>
+              <button type="button" className={lang === 'kk' ? 'on' : ''} onClick={() => setLang('kk')}>ҚАЗ</button>
+              <button type="button" className={lang === 'ru' ? 'on' : ''} onClick={() => setLang('ru')}>РУС</button>
+              <button type="button" className={lang === 'en' ? 'on' : ''} onClick={() => setLang('en')}>ENG</button>
             </div>
-            <button className="theme-btn" onClick={toggleTheme} title={t('common.theme')} aria-label={t('common.themeToggle')}>
-              {dark ? <Moon size={20} strokeWidth={2} color="#9BA0B0" /> : <Sun size={20} strokeWidth={2} color="#69728A" />}
+            <button type="button" className="theme-btn" onClick={toggleTheme} title={t('common.theme')} aria-label={t('common.themeToggle')}>
+              {dark ? <Moon size={20} strokeWidth={2} color="currentColor" /> : <Sun size={20} strokeWidth={2} color="currentColor" />}
             </button>
           </div>
 
@@ -473,10 +465,10 @@ function RegisterContent() {
                   disabled={loading}
                 />
               </div>
-              <button type="submit" className="btn btn-red" style={{ width: '100%' }} disabled={loading}>
+              <button type="submit" className="btn btn-red btn-block" disabled={loading}>
                 {loading ? t('register.loading') : t('register.continueBtn')}
               </button>
-              <p style={{ textAlign: 'center', fontSize: 14, marginTop: 22 }}>
+              <p className="auth-center-note">
                 {t('register.hasAccount')} <Link className="link" href="/login">{t('register.loginLink')}</Link>
               </p>
             </form>
@@ -510,14 +502,13 @@ function RegisterContent() {
                 ))}
               </div>
               <button
-                className="btn btn-red"
-                style={{ width: '100%' }}
+                className="btn btn-red btn-block"
                 onClick={handleStep2}
                 disabled={loading || !selectedUniversity}
               >
                 {loading ? t('register.loading') : t('register.continueBtn')}
               </button>
-              <p style={{ textAlign: 'center', fontSize: 12.5, color: 'var(--muted)', marginTop: 14 }}>
+              <p className="auth-muted-note">
                 {t('register.uniNotListed')} <a className="link" href="#">{t('register.contactUs')}</a> {t('register.willAdd')}
               </p>
             </>
@@ -559,7 +550,7 @@ function RegisterContent() {
                     type="file"
                     accept="image/*,.pdf"
                     onChange={handleFileChange}
-                    style={{ display: 'none' }}
+                    className="file-input-hidden"
                   />
                   {document ? (
                     <span>{t('register.documentSelected')} {document.name}</span>
@@ -567,15 +558,15 @@ function RegisterContent() {
                     <>
                       {t('register.uploadText')} <b>{t('register.uploadBold')}</b>
                       <br />
-                      <span style={{ fontSize: 12 }}>{t('register.uploadHint')}</span>
+                      <span className="upload-hint">{t('register.uploadHint')}</span>
                     </>
                   )}
                 </label>
               </div>
-              <button type="submit" className="btn btn-red" style={{ width: '100%' }} disabled={loading}>
+              <button type="submit" className="btn btn-red btn-block" disabled={loading}>
                 {loading ? t('register.uploading') : t('register.submitBtn')}
               </button>
-              <p style={{ textAlign: 'center', fontSize: 12.5, color: 'var(--muted)', marginTop: 14 }}>
+              <p className="auth-muted-note">
                 {t('register.verificationNotice')}
               </p>
             </form>
@@ -618,7 +609,7 @@ function Constellation() {
 
 export default function RegisterPage() {
   return (
-    <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>}>
+    <Suspense fallback={<div className="auth-loading-screen">Loading...</div>}>
       <RegisterContent />
     </Suspense>
   );

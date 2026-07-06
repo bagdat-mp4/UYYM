@@ -46,7 +46,7 @@ export default function AppShell({ children, profile }) {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <Link href="/feed">
+        <Link href="/feed" className="app-brand-link" aria-label="UYYM">
           <Logo size={32} wordSize={20} />
         </Link>
         <nav className="app-nav">
@@ -62,17 +62,17 @@ export default function AppShell({ children, profile }) {
         </nav>
         <div className="app-header-right">
           <div className="lang">
-            <span className={lang === 'kk' ? 'on' : ''} onClick={() => setLang('kk')}>ҚАЗ</span>
-            <span className={lang === 'ru' ? 'on' : ''} onClick={() => setLang('ru')}>РУС</span>
-            <span className={lang === 'en' ? 'on' : ''} onClick={() => setLang('en')}>ENG</span>
+            <button type="button" className={lang === 'kk' ? 'on' : ''} onClick={() => setLang('kk')}>ҚАЗ</button>
+            <button type="button" className={lang === 'ru' ? 'on' : ''} onClick={() => setLang('ru')}>РУС</button>
+            <button type="button" className={lang === 'en' ? 'on' : ''} onClick={() => setLang('en')}>ENG</button>
           </div>
-          <button className="theme-btn" onClick={toggleTheme} title={t('common.theme')} aria-label={t('common.themeToggle')}>
-            {dark ? <Moon size={20} strokeWidth={2} color="#9BA0B0" /> : <Sun size={20} strokeWidth={2} color="#69728A" />}
+          <button type="button" className="theme-btn" onClick={toggleTheme} title={t('common.theme')} aria-label={t('common.themeToggle')}>
+            {dark ? <Moon size={20} strokeWidth={2} color="currentColor" /> : <Sun size={20} strokeWidth={2} color="currentColor" />}
           </button>
           {profile && (
             <span className="user-name-badge">{profile.first_name} {profile.last_name}</span>
           )}
-          <button className="btn btn-ghost" onClick={handleSignOut}>
+          <button type="button" className="btn btn-ghost" onClick={handleSignOut}>
             {t('header.signout')}
           </button>
         </div>

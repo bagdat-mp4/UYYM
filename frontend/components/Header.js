@@ -36,15 +36,15 @@ export default function Header() {
       </nav>
       <div className="head-actions">
         <div className="lang">
-          <span className={lang === 'kk' ? 'on' : ''} onClick={() => setLang('kk')}>ҚАЗ</span>
-          <span className={lang === 'ru' ? 'on' : ''} onClick={() => setLang('ru')}>РУС</span>
-          <span className={lang === 'en' ? 'on' : ''} onClick={() => setLang('en')}>ENG</span>
+          <button type="button" className={lang === 'kk' ? 'on' : ''} onClick={() => setLang('kk')}>ҚАЗ</button>
+          <button type="button" className={lang === 'ru' ? 'on' : ''} onClick={() => setLang('ru')}>РУС</button>
+          <button type="button" className={lang === 'en' ? 'on' : ''} onClick={() => setLang('en')}>ENG</button>
         </div>
-        <button className="theme-btn" onClick={toggleTheme} title={t('common.theme')} aria-label={t('common.themeToggle')}>
+        <button type="button" className="theme-btn" onClick={toggleTheme} title={t('common.theme')} aria-label={t('common.themeToggle')}>
           {dark ? (
-            <Moon size={20} strokeWidth={2} color="#9BA0B0" />
+            <Moon size={20} strokeWidth={2} color="currentColor" />
           ) : (
-            <Sun size={20} strokeWidth={2} color="#69728A" />
+            <Sun size={20} strokeWidth={2} color="currentColor" />
           )}
         </button>
         <Link className="btn btn-ghost" href="/login">{t('header.login')}</Link>
