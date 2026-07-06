@@ -1,0 +1,113 @@
+<!DOCTYPE html><html lang="kk"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Uyym — Ивенттер</title><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"><style>
+:root{
+  --bg:#0C0C0E; --bg2:#161619; --card:#1C1C21; --card2:#232329;
+  --line:#2A2A31; --txt:#FFFFFF; --mut:#9A9AA5; --dim:#6E6E78;
+  --red:#E62E2E; --red-deep:#C81E1E; --red-tint:rgba(230,46,46,.14);
+  --gold:#F2A93B; --green:#3DBE5B;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
+body{background:#000;display:flex;justify-content:center;padding:0;font-family:'Inter',Arial,sans-serif}
+.phone{width:375px;min-height:812px;background:var(--bg);color:var(--txt);position:relative;padding-bottom:92px}
+h1,h2,h3,.logo-word{font-family:'Poppins','Inter',sans-serif}
+/* status bar */
+.status{display:flex;justify-content:space-between;align-items:center;padding:14px 18px 6px;font-weight:700;font-size:15px}
+.status .r{display:flex;gap:5px;align-items:center;font-size:11px;color:var(--mut)}
+/* header */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 18px}
+.hdr .ttl{font-family:'Poppins';font-weight:700;font-size:17px;position:absolute;left:50%;transform:translateX(-50%)}
+.hicon{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative}
+.dot{position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:var(--red)}
+/* tabs */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin-top:4px}
+.tab{flex:1;text-align:center;padding:12px 0 11px;font-size:15px;font-weight:700;color:var(--mut);position:relative}
+.tab.on{color:var(--txt)}
+.tab.on::after{content:"";position:absolute;left:22%;right:22%;bottom:-1px;height:3px;border-radius:99px;background:var(--red)}
+.tab .dot2{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--red);margin-left:5px;vertical-align:middle}
+/* chips */
+.chips{display:flex;gap:9px;padding:14px 18px;overflow:hidden}
+.chip{display:inline-flex;align-items:center;gap:7px;border:1.5px solid var(--line);color:var(--txt);
+  border-radius:99px;padding:9px 15px;font-size:13.5px;font-weight:600;white-space:nowrap;background:var(--bg2)}
+.chip.on{border-color:var(--red);color:var(--red);background:var(--red-tint)}
+/* buttons */
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:calc(100% - 36px);margin:0 18px;
+  padding:15px;border-radius:99px;border:none;font-family:'Inter';font-size:15.5px;font-weight:700;cursor:pointer}
+.btn-red{background:var(--red);color:#fff}
+.btn-line{background:transparent;color:var(--txt);border:1.5px solid var(--line)}
+/* cards */
+.card{background:var(--card);border-radius:16px;margin:0 18px 14px;overflow:hidden}
+.pad{padding:16px}
+.avatar{border-radius:50%;background:var(--red);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-family:'Poppins';flex:0 0 auto}
+.av-s{width:34px;height:34px;font-size:13px}.av-m{width:44px;height:44px;font-size:16px}.av-b{width:64px;height:64px;font-size:22px}
+.blue{background:#3D6BDB}.green{background:#2F9E44}.gold{background:var(--gold)}.ink{background:#3A3A44}
+.vf{color:var(--red);font-weight:800;font-size:12px}
+.mut{color:var(--mut)}
+.sec{font-family:'Poppins';font-weight:700;font-size:17px;padding:6px 18px 12px}
+/* bottom nav */
+.bnav{position:absolute;left:0;right:0;bottom:0;background:#101013;border-top:1px solid var(--line);
+  display:flex;justify-content:space-around;align-items:flex-end;padding:8px 6px 18px}
+.bitem{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10.5px;font-weight:600;color:var(--dim);width:64px;position:relative}
+.bitem.on{color:var(--red)}
+.bitem.on svg *{stroke:var(--red)}
+.bitem .bdg{position:absolute;top:-5px;right:12px;background:var(--red);color:#fff;font-size:10px;font-weight:800;border-radius:99px;padding:1px 6px}
+.rec{width:56px;height:56px;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;margin-top:-22px;box-shadow:0 4px 16px rgba(230,46,46,.4)}
+
+.heroev{margin:2px 18px 14px;border-radius:16px;overflow:hidden;background:var(--red);position:relative;height:196px}
+.heroev svg.bgn{position:absolute;inset:0;opacity:.22}
+.heroev .lg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.evinfo{display:flex;gap:13px;align-items:center;padding:2px 18px 14px}
+.medal{width:56px;height:56px;border-radius:50%;background:var(--red-tint);border:2px solid var(--red);display:flex;align-items:center;justify-content:center;font-family:'Poppins';font-weight:800;color:var(--red);font-size:13px}
+.evinfo h3{font-size:16.5px}
+.evinfo .m{font-size:12.5px;color:var(--mut);margin-top:3px;line-height:1.5}
+.promo{margin:22px 18px 12px}
+.promo h3{display:flex;gap:9px;align-items:center;font-size:17px}
+.promo p{font-size:13.5px;color:var(--mut);line-height:1.55;margin-top:8px}
+</style></head>
+<body><div class="phone">
+<div class="status"><span>21:50</span><span class="r">▮▮▯ ⌁ 🔋</span></div>
+<div class="hdr">
+  <div class="hicon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></div>
+  <span class="ttl">Ивенттер</span>
+  <div style="display:flex;gap:2px">
+    <div class="hicon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H4l1.6-3.2A8 8 0 1 1 21 12z"/></svg></div>
+    <div class="hicon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2-1.2L14.2 3h-4l-.4 2.7a7 7 0 0 0-2 1.2l-2.3-1-2 3.4 2 1.5a7 7 0 0 0 0 2.4l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2 1.2l.4 2.7h4l.4-2.7a7 7 0 0 0 2-1.2l2.3 1 2-3.4-2-1.5c.06-.4.1-.8.1-1.2z"/></svg><span class="dot"></span></div>
+  </div>
+</div>
+<div class="tabs"><div class="tab on">Ивенттер</div><div class="tab">Клубтар<span class="dot2"></span></div></div>
+<div class="chips">
+  <span class="chip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9A9AA5" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4"/><rect x="9" y="3" width="6" height="10" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/></svg> Дебат</span>
+  <span class="chip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9A9AA5" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17M3.5 12h17M6 6.5c3.5 3 8.5 3 12 0M6 17.5c3.5-3 8.5-3 12 0"/></svg> Спорт</span>
+  <span class="chip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9A9AA5" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m8.5 8-4 4 4 4M15.5 8l4 4-4 4"/></svg> IT</span>
+  <span class="chip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9A9AA5" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5a2 2 0 0 1 2-2H19v17H6.5a2 2 0 0 0-2 2z"/><path d="M4.5 19a2 2 0 0 1 2-2H19"/></svg> Лекция</span>
+</div>
+<div class="heroev">
+  <svg class="bgn" viewBox="0 0 340 196" preserveAspectRatio="xMidYMid slice">
+    <g stroke="#fff" stroke-width="2.5" stroke-linecap="round">
+    <line x1="40" y1="50" x2="120" y2="25"/><line x1="120" y1="25" x2="150" y2="95"/><line x1="40" y1="50" x2="80" y2="140"/>
+    <line x1="250" y1="35" x2="310" y2="90"/><line x1="310" y1="90" x2="270" y2="160"/><line x1="250" y1="35" x2="270" y2="160"/></g>
+    <g fill="#fff"><circle cx="40" cy="50" r="6"/><circle cx="120" cy="25" r="5"/><circle cx="150" cy="95" r="6"/>
+    <circle cx="80" cy="140" r="5"/><circle cx="250" cy="35" r="6"/><circle cx="310" cy="90" r="5"/><circle cx="270" cy="160" r="6"/></g>
+  </svg>
+  <div class="lg"><svg width="120" height="120" viewBox="0 0 120 120"><g stroke="#fff" stroke-width="5" stroke-linecap="round">
+<line x1="60" y1="60" x2="32" y2="36"/><line x1="60" y1="60" x2="90" y2="38"/>
+<line x1="60" y1="60" x2="40" y2="90"/><line x1="60" y1="60" x2="88" y2="86"/></g>
+<g fill="#fff"><circle cx="32" cy="36" r="7"/><circle cx="90" cy="38" r="7"/>
+<circle cx="40" cy="90" r="7"/><circle cx="88" cy="86" r="7"/><circle cx="60" cy="60" r="12"/></g></svg></div>
+</div>
+<div class="evinfo">
+  <div class="medal">4<br>ШІЛ</div>
+  <div><h3>Универаралық дебат турнирі</h3>
+    <div class="m"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9A9AA5" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="9.8" r="2.4"/></svg> ҚазҰУ кампусы · сенбі, 14:00<br>КБТУ · ҚазҰУ · AITU командалары · 86 қатысушы</div></div>
+</div>
+<button class="btn btn-red">Тіркелу</button>
+<div class="promo">
+  <h3><svg width="22" height="22" viewBox="0 0 120 120"><rect width="120" height="120" rx="26" fill="#E62E2E"/><g stroke="#fff" stroke-width="5" stroke-linecap="round">
+<line x1="60" y1="60" x2="32" y2="36"/><line x1="60" y1="60" x2="90" y2="38"/>
+<line x1="60" y1="60" x2="40" y2="90"/><line x1="60" y1="60" x2="88" y2="86"/></g>
+<g fill="#fff"><circle cx="32" cy="36" r="7"/><circle cx="90" cy="38" r="7"/>
+<circle cx="40" cy="90" r="7"/><circle cx="88" cy="86" r="7"/><circle cx="60" cy="60" r="12"/></g></svg> Өз ивентіңді ұйымдастыр</h3>
+  <p>Клуб кездесуі, лекция, спорт матчы — өз ережеңді қой, басқа универдің студенттерін шақыр, бір мақсатқа бірге жет.</p>
+</div>
+<button class="btn btn-line">Ивент құру</button>
+<div class="bnav"><div class="bitem"><span class="bdg">5</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9A9AA5" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4l8 7v8a1.5 1.5 0 0 1-1.5 1.5H5.5A1.5 1.5 0 0 1 4 19z"/><path d="M9.5 20v-6h5v6"/></svg><span>Лента</span></div><div class="bitem"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9A9AA5" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg><span>Оқытушылар</span></div><div class="bitem"><div class="rec"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></div><span style="margin-top:3px">Пост</span></div><div class="bitem on"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9A9AA5" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 11h17"/></svg><span>Ивенттер</span></div><div class="bitem"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9A9AA5" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20.5c1.4-3.8 4.7-5.2 7.5-5.2s6.1 1.4 7.5 5.2"/></svg><span>Профиль</span></div></div></div></body></html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html><html lang="kk"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Uyym — Профиль</title><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"><style>
+:root{
+  --bg:#0C0C0E; --bg2:#161619; --card:#1C1C21; --card2:#232329;
+  --line:#2A2A31; --txt:#FFFFFF; --mut:#9A9AA5; --dim:#6E6E78;
+  --red:#E62E2E; --red-deep:#C81E1E; --red-tint:rgba(230,46,46,.14);
+  --gold:#F2A93B; --green:#3DBE5B;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
+body{background:#000;display:flex;justify-content:center;padding:0;font-family:'Inter',Arial,sans-serif}
+.phone{width:375px;min-height:812px;background:var(--bg);color:var(--txt);position:relative;padding-bottom:92px}
+h1,h2,h3,.logo-word{font-family:'Poppins','Inter',sans-serif}
+/* status bar */
+.status{display:flex;justify-content:space-between;align-items:center;padding:14px 18px 6px;font-weight:700;font-size:15px}
+.status .r{display:flex;gap:5px;align-items:center;font-size:11px;color:var(--mut)}
+/* header */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 18px}
+.hdr .ttl{font-family:'Poppins';font-weight:700;font-size:17px;position:absolute;left:50%;transform:translateX(-50%)}
+.hicon{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative}
+.dot{position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:var(--red)}
+/* tabs */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin-top:4px}
+.tab{flex:1;text-align:center;padding:12px 0 11px;font-size:15px;font-weight:700;color:var(--mut);position:relative}
+.tab.on{color:var(--txt)}
+.tab.on::after{content:"";position:absolute;left:22%;right:22%;bottom:-1px;height:3px;border-radius:99px;background:var(--red)}
+.tab .dot2{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--red);margin-left:5px;vertical-align:middle}
+/* chips */
+.chips{display:flex;gap:9px;padding:14px 18px;overflow:hidden}
+.chip{display:inline-flex;align-items:center;gap:7px;border:1.5px solid var(--line);color:var(--txt);
+  border-radius:99px;padding:9px 15px;font-size:13.5px;font-weight:600;white-space:nowrap;background:var(--bg2)}
+.chip.on{border-color:var(--red);color:var(--red);background:var(--red-tint)}
+/* buttons */
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:calc(100% - 36px);margin:0 18px;
+  padding:15px;border-radius:99px;border:none;font-family:'Inter';font-size:15.5px;font-weight:700;cursor:pointer}
+.btn-red{background:var(--red);color:#fff}
+.btn-line{background:transparent;color:var(--txt);border:1.5px solid var(--line)}
+/* cards */
+.card{background:var(--card);border-radius:16px;margin:0 18px 14px;overflow:hidden}
+.pad{padding:16px}
+.avatar{border-radius:50%;background:var(--red);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-family:'Poppins';flex:0 0 auto}
+.av-s{width:34px;height:34px;font-size:13px}.av-m{width:44px;height:44px;font-size:16px}.av-b{width:64px;height:64px;font-size:22px}
+.blue{background:#3D6BDB}.green{background:#2F9E44}.gold{background:var(--gold)}.ink{background:#3A3A44}
+.vf{color:var(--red);font-weight:800;font-size:12px}
+.mut{color:var(--mut)}
+.sec{font-family:'Poppins';font-weight:700;font-size:17px;padding:6px 18px 12px}
+/* bottom nav */
+.bnav{position:absolute;left:0;right:0;bottom:0;background:#101013;border-top:1px solid var(--line);
+  display:flex;justify-content:space-around;align-items:flex-end;padding:8px 6px 18px}
+.bitem{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10.5px;font-weight:600;color:var(--dim);width:64px;position:relative}
+.bitem.on{color:var(--red)}
+.bitem.on svg *{stroke:var(--red)}
+.bitem .bdg{position:absolute;top:-5px;right:12px;background:var(--red);color:#fff;font-size:10px;font-weight:800;border-radius:99px;padding:1px 6px}
+.rec{width:56px;height:56px;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;margin-top:-22px;box-shadow:0 4px 16px rgba(230,46,46,.4)}
+
+.focus{margin:8px 18px 16px;border:1.5px solid var(--line);border-radius:99px;display:flex;align-items:center;gap:11px;padding:13px 18px;font-size:15px;font-weight:600}
+.focus svg:last-child{margin-left:auto}
+.trncard{display:flex;gap:13px;margin:0 18px 16px;background:var(--card);border-radius:16px;padding:14px;align-items:center}
+.trncard .ic{width:62px;height:62px;border-radius:14px;background:linear-gradient(150deg,#E62E2E,#8F1616);display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-family:'Poppins';font-size:12px}
+.trncard .k{font-size:11px;color:var(--mut);font-weight:700;letter-spacing:.4px;text-transform:uppercase}
+.trncard h3{font-size:15px;margin-top:2px}
+.trncard p{font-size:12px;color:var(--mut);margin-top:3px;line-height:1.45}
+.dark{background:var(--card);margin:0 18px 16px;border-radius:16px;padding:16px}
+.dark .k{font-size:10.5px;letter-spacing:.6px;color:var(--mut);font-weight:700}
+.dark h3{font-size:16px;margin-top:6px}
+.dark p{font-size:13px;color:var(--mut);line-height:1.5;margin-top:6px}
+.wk{padding:4px 18px}
+.wk .pill{display:inline-flex;gap:7px;align-items:center;border:1.5px solid var(--red);color:var(--red);font-weight:700;font-size:13px;border-radius:99px;padding:7px 14px}
+.wk h2{font-size:17px;margin:14px 0 12px}
+.nums{display:flex;gap:34px}
+.nums .k{font-size:11.5px;color:var(--mut)}
+.nums b{font-family:'Poppins';font-size:21px;display:block;margin-top:3px}
+.spark{margin-top:16px;color:var(--dim);font-size:11px}
+</style></head>
+<body><div class="phone">
+<div class="status"><span>21:50</span><span class="r">▮▮▯ ⌁ 🔋</span></div>
+<div class="hdr">
+  <span class="avatar av-s">ВВ</span>
+  <span class="ttl">Сен</span>
+  <div style="display:flex;gap:2px">
+    <div class="hicon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></div>
+    <div class="hicon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2-1.2L14.2 3h-4l-.4 2.7a7 7 0 0 0-2 1.2l-2.3-1-2 3.4 2 1.5a7 7 0 0 0 0 2.4l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2 1.2l.4 2.7h4l.4-2.7a7 7 0 0 0 2-1.2l2.3 1 2-3.4-2-1.5c.06-.4.1-.8.1-1.2z"/></svg><span class="dot"></span></div>
+  </div>
+</div>
+<div class="tabs"><div class="tab on">Прогресс</div><div class="tab">Белсенділік</div></div>
+<div style="height:14px"></div>
+<div class="focus"><svg width="22" height="22" viewBox="0 0 120 120"><rect width="120" height="120" rx="26" fill="#E62E2E"/><g stroke="#fff" stroke-width="5" stroke-linecap="round">
+<line x1="60" y1="60" x2="32" y2="36"/><line x1="60" y1="60" x2="90" y2="38"/>
+<line x1="60" y1="60" x2="40" y2="90"/><line x1="60" y1="60" x2="88" y2="86"/></g>
+<g fill="#fff"><circle cx="32" cy="36" r="7"/><circle cx="90" cy="38" r="7"/>
+<circle cx="40" cy="90" r="7"/><circle cx="88" cy="86" r="7"/><circle cx="60" cy="60" r="12"/></g></svg> Бұл аптадағы мақсатың? <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#9A9AA5" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2-1.2L14.2 3h-4l-.4 2.7a7 7 0 0 0-2 1.2l-2.3-1-2 3.4 2 1.5a7 7 0 0 0 0 2.4l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2 1.2l.4 2.7h4l.4-2.7a7 7 0 0 0 2-1.2l2.3 1 2-3.4-2-1.5c.06-.4.1-.8.1-1.2z"/></svg></div>
+<div class="trncard">
+  <div class="ic">4.9<span style="font-size:8.5px;font-weight:600;opacity:.85">рейтинг</span></div>
+  <div><div class="k">Көмек рейтингі</div><h3>Топ-5% көмекші · КБТУ</h3>
+  <p>14 материал бөлістің, 37 сұраққа жауап бердің. Осы қарқынды ұстасаң — «Сарапшы» бейджі жақын.</p></div>
+</div>
+<div class="dark">
+  <div class="k">ВЕРИФИКАЦИЯ</div>
+  <h3>Профиль расталған <span class="vf">✓</span></h3>
+  <p>КБТУ · Автоматтандыру және басқару · 3-курс. Байланыс: 184 студент, 6 универ.</p>
+</div>
+<div class="wk">
+  <span class="pill"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E62E2E" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20l3-6 3 2 2-5 3 3"/><circle cx="15" cy="5.5" r="2"/></svg> Осы аптада</span>
+  <h2>Белсенділік</h2>
+  <div class="nums">
+    <div><span class="k">Пост</span><b>3</b></div>
+    <div><span class="k">Материал</span><b>2</b></div>
+    <div><span class="k">Жаңа байланыс</span><b>11</b></div>
+  </div>
+  <div class="spark">Соңғы 12 апта ▁▂▃▂▅▄▆▅▇▆█▇ · рекорд: 19 байланыс</div>
+</div>
+<div class="bnav"><div class="bitem"><span class="bdg">5</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9A9AA5" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4l8 7v8a1.5 1.5 0 0 1-1.5 1.5H5.5A1.5 1.5 0 0 1 4 19z"/><path d="M9.5 20v-6h5v6"/></svg><span>Лента</span></div><div class="bitem"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9A9AA5" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg><span>Оқытушылар</span></div><div class="bitem"><div class="rec"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></div><span style="margin-top:3px">Пост</span></div><div class="bitem"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9A9AA5" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 11h17"/></svg><span>Ивенттер</span></div><div class="bitem on"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9A9AA5" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20.5c1.4-3.8 4.7-5.2 7.5-5.2s6.1 1.4 7.5 5.2"/></svg><span>Профиль</span></div></div></div></body></html>

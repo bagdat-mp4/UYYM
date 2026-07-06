@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 500" width="1500" height="500">
+  <rect width="1500" height="500" fill="#DC2626"/>
+  <!-- фондық жеңіл желі -->
+  <g stroke="#FFFFFF" stroke-width="3" opacity="0.14" stroke-linecap="round">
+    <line x1="120" y1="120" x2="320" y2="60"/><line x1="320" y2="230" x2="320" y1="60"/>
+    <line x1="120" y1="120" x2="260" y2="330"/><line x1="260" y1="330" x2="520" y2="420"/>
+    <line x1="1180" y1="90" x2="1380" y2="180"/><line x1="1380" y1="180" x2="1290" y2="380"/>
+    <line x1="1180" y1="90" x2="1290" y2="380"/><line x1="1050" y1="400" x2="1290" y2="380"/>
+  </g>
+  <g fill="#FFFFFF" opacity="0.22">
+    <circle cx="120" cy="120" r="10"/><circle cx="320" cy="60" r="8"/><circle cx="320" cy="230" r="7"/>
+    <circle cx="260" cy="330" r="8"/><circle cx="520" cy="420" r="7"/>
+    <circle cx="1180" cy="90" r="9"/><circle cx="1380" cy="180" r="7"/>
+    <circle cx="1290" cy="380" r="9"/><circle cx="1050" cy="400" r="7"/>
+  </g>
+  <!-- ортадағы ақ иконка (фонсыз, тек желі) -->
+  <g transform="translate(620,105) scale(1.1)" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round">
+    <line x1="60" y1="60" x2="24" y2="28"/><line x1="60" y1="60" x2="98" y2="30"/>
+    <line x1="60" y1="60" x2="34" y2="96"/><line x1="60" y1="60" x2="96" y2="92"/>
+  </g>
+  <g transform="translate(620,105) scale(1.1)" fill="#FFFFFF">
+    <circle cx="24" cy="28" r="9"/><circle cx="98" cy="30" r="9"/>
+    <circle cx="34" cy="96" r="9"/><circle cx="96" cy="92" r="9"/><circle cx="60" cy="60" r="14"/>
+  </g>
+  <text x="750" y="330" text-anchor="middle" font-family="Poppins" font-weight="bold" font-size="86" letter-spacing="6" fill="#FFFFFF">UYYM</text>
+  <text x="750" y="392" text-anchor="middle" font-family="Liberation Sans" font-size="30" fill="#FFFFFF" opacity="0.92">студенттер бір жерде · uyym.kz</text>
+</svg>
