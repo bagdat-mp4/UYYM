@@ -70,6 +70,7 @@ input:focus { border-color: var(--red); }
 /* --- логотип --- */
 .logo { display: flex; align-items: center; gap: 10px; }
 .logo-word { font-weight: 700; font-size: 22px; letter-spacing: 1px; color: var(--ink); }
+.logo-word.on-red { color: #fff; }
 
 /* --- тіл ауыстырғыш --- */
 .lang {

@@ -1,4 +1,4 @@
-export default function Logo({ size = 36, wordSize = 22 }) {
+export default function Logo({ size = 36, wordSize = 22, white = false }) {
   return (
     <div className="logo">
       <svg width={size} height={size} viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -17,7 +17,7 @@ export default function Logo({ size = 36, wordSize = 22 }) {
           <circle cx="60" cy="60" r="12" />
         </g>
       </svg>
-      <span className="logo-word" style={{ fontSize: wordSize }}>UYYM</span>
+      <span className={white ? 'logo-word on-red' : 'logo-word'} style={{ fontSize: wordSize }}>UYYM</span>
     </div>
   );
 }

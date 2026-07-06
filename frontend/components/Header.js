@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Sun, Moon } from 'lucide-react';
 import Logo from './Logo';
 
 export default function Header() {
@@ -38,18 +40,13 @@ export default function Header() {
         </div>
         <button className="theme-btn" onClick={toggleTheme} title="Тақырып" aria-label="Тақырыпты ауыстыру">
           {dark ? (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9BA0B0" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 13.5A8.5 8.5 0 0 1 10.5 4 7.5 7.5 0 1 0 20 13.5Z" />
-            </svg>
+            <Moon size={20} strokeWidth={2} color="#9BA0B0" />
           ) : (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#69728A" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="4.2" />
-              <path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5 5l1.8 1.8M17.2 17.2 19 19M19 5l-1.8 1.8M6.8 17.2 5 19" />
-            </svg>
+            <Sun size={20} strokeWidth={2} color="#69728A" />
           )}
         </button>
-        <a className="btn btn-ghost" href="#wait">Кіру</a>
-        <a className="btn btn-red" href="#wait">Тіркелу</a>
+        <Link className="btn btn-ghost" href="/login">Кіру</Link>
+        <Link className="btn btn-red" href="/register">Тіркелу</Link>
       </div>
     </header>
   );
