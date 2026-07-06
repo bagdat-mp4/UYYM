@@ -37,13 +37,55 @@ function RegisterContent() {
   const [userId, setUserId] = useState(null);
 
   const [emailConfirmationNeeded, setEmailConfirmationNeeded] = useState(false);
+  const [initializing, setInitializing] = useState(true);
 
+  // Resume logic: check if user is already logged in and determine step
   useEffect(() => {
-    const stepParam = searchParams.get('step');
-    if (stepParam) {
-      setStep(parseInt(stepParam));
-    }
-  }, [searchParams]);
+    const checkResumeState = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        // User is logged in, determine which step to show
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('university_id')
+          .eq('id', user.id)
+          .single();
+
+        if (!profile || !profile.university_id) {
+          // No university set, go to step 2
+          setStep(2);
+        } else {
+          // University is set, check verification status
+          const { data: verificationReq } = await supabase
+            .from('verification_requests')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+
+          if (!verificationReq) {
+            // No verification request, go to step 3
+            setStep(3);
+            setSelectedUniversity({ id: profile.university_id });
+          } else {
+            // Already verified or pending, redirect to feed
+            router.push('/feed');
+            return;
+          }
+        }
+        setUserId(user.id);
+      } else {
+        // Not logged in, check URL params
+        const stepParam = searchParams.get('step');
+        if (stepParam) {
+          setStep(parseInt(stepParam));
+        }
+      }
+      setInitializing(false);
+    };
+
+    checkResumeState();
+  }, [searchParams, router]);
 
   useEffect(() => {
     if (step === 2) {
@@ -252,6 +294,14 @@ function RegisterContent() {
     u.short_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  if (initializing) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {t('common.loading')}
+      </div>
+    );
+  }
+
   if (emailConfirmationNeeded) {
     return (
       <div className="auth">
@@ -261,9 +311,7 @@ function RegisterContent() {
             <Logo size={40} wordSize={24} white />
           </div>
           <h2>{t('register.emailConfirmSideTitle')}</h2>
-          <p className="q">
-            {t('register.emailSentTo')} <b>{email}</b> {t('register.emailConfirmSideText')}
-          </p>
+          <p className="q">{t('register.emailConfirmSideText')}</p>
         </div>
         <div className="auth-form">
           <div className="auth-box">

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Logo from '@/components/Logo';
 import { supabase } from '@/lib/supabase';
 import { useLang } from '@/lib/LanguageProvider';
@@ -12,6 +13,7 @@ export default function FeedPage() {
   const { t } = useLang();
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [verificationRequest, setVerificationRequest] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,6 +41,14 @@ export default function FeedPage() {
       setProfile(profileData);
     }
 
+    // Fetch verification request status
+    const { data: verificationData } = await supabase
+      .from('verification_requests')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    setVerificationRequest(verificationData);
     setLoading(false);
   };
 
@@ -80,12 +90,25 @@ export default function FeedPage() {
           <p>{t('feed.subtitle')}</p>
           {profile && !profile.is_verified && (
             <div className="verification-notice">
-              <p>
-                <strong>{t('feed.verificationPending')}</strong>
-              </p>
-              <p style={{ fontSize: 14, marginTop: 8 }}>
-                {t('feed.verificationNotice')}
-              </p>
+              {!verificationRequest ? (
+                <>
+                  <p>
+                    <strong>{t('feed.notVerified')}</strong>
+                  </p>
+                  <Link href="/register" className="btn btn-red" style={{ marginTop: 16, display: 'inline-flex' }}>
+                    {t('feed.continueVerification')}
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <p>
+                    <strong>{t('feed.verificationPending')}</strong>
+                  </p>
+                  <p style={{ fontSize: 14, marginTop: 8 }}>
+                    {t('feed.verificationNotice')}
+                  </p>
+                </>
+              )}
             </div>
           )}
         </div>
