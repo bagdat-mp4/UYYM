@@ -1,0 +1,83 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Sun, Moon } from 'lucide-react';
+import { useLang } from '@/lib/LanguageProvider';
+import { supabase } from '@/lib/supabase';
+import Logo from './Logo';
+
+export default function AppShell({ children, profile }) {
+  const pathname = usePathname();
+  const { lang, setLang, t } = useLang();
+  const [dark, setDark] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('uyym-theme');
+    if (saved === 'dark') {
+      setDark(true);
+      document.body.classList.add('dark');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const next = !dark;
+    setDark(next);
+    document.body.classList.toggle('dark', next);
+    localStorage.setItem('uyym-theme', next ? 'dark' : 'light');
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/';
+  };
+
+  const navItems = [
+    { href: '/feed', label: t('header.feed') },
+    { href: '/professors', label: t('header.professors') },
+    { href: '/profile', label: t('header.profile') },
+  ];
+
+  if (profile?.is_admin) {
+    navItems.push({ href: '/admin', label: t('header.admin') });
+  }
+
+  return (
+    <div className="app-shell">
+      <header className="app-header">
+        <Link href="/feed">
+          <Logo size={32} wordSize={20} />
+        </Link>
+        <nav className="app-nav">
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`nav-link ${pathname === item.href ? 'active' : ''}`}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+        <div className="app-header-right">
+          <div className="lang">
+            <span className={lang === 'kk' ? 'on' : ''} onClick={() => setLang('kk')}>ҚАЗ</span>
+            <span className={lang === 'ru' ? 'on' : ''} onClick={() => setLang('ru')}>РУС</span>
+            <span className={lang === 'en' ? 'on' : ''} onClick={() => setLang('en')}>ENG</span>
+          </div>
+          <button className="theme-btn" onClick={toggleTheme} title={t('common.theme')} aria-label={t('common.themeToggle')}>
+            {dark ? <Moon size={20} strokeWidth={2} color="#9BA0B0" /> : <Sun size={20} strokeWidth={2} color="#69728A" />}
+          </button>
+          {profile && (
+            <span className="user-name-badge">{profile.first_name} {profile.last_name}</span>
+          )}
+          <button className="btn btn-ghost" onClick={handleSignOut}>
+            {t('header.signout')}
+          </button>
+        </div>
+      </header>
+      <main className="app-main">{children}</main>
+    </div>
+  );
+}

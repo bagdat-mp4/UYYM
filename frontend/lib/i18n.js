@@ -9,6 +9,10 @@ export const translations = {
       login: 'Кіру',
       signup: 'Тіркелу',
       signout: 'Шығу',
+      feed: 'Лента',
+      professors: 'Оқытушылар',
+      profile: 'Профиль',
+      admin: 'Админ',
     },
 
     // Landing page - Hero
@@ -229,6 +233,25 @@ export const translations = {
       continueVerification: 'Жалғастыру',
     },
 
+    // Admin page
+    admin: {
+      title: 'Админ панель',
+      verifications: 'Верификациялар',
+      ratings: 'Бағалар',
+      pending: 'Күтуде',
+      approved: 'Мақұлданған',
+      rejected: 'Қабылданбаған',
+      noRequests: 'Өтінімдер жоқ',
+      studentId: 'Студенттік билет',
+      approve: 'Мақұлдау',
+      reject: 'Қабылдамау',
+      rejectNote: 'Қабылдамау себебі (міндетті емес):',
+      professor: 'Оқытушы',
+      comment: 'Пікір',
+      delete: 'Өшіру',
+      noPendingRatings: 'Күтудегі бағалар жоқ',
+    },
+
     // Common
     common: {
       loading: 'Жүктелуде...',
@@ -247,6 +270,10 @@ export const translations = {
       login: 'Войти',
       signup: 'Регистрация',
       signout: 'Выйти',
+      feed: 'Лента',
+      professors: 'Преподаватели',
+      profile: 'Профиль',
+      admin: 'Админ',
     },
 
     // Landing page - Hero
@@ -452,6 +479,27 @@ export const translations = {
       subtitle: 'Сейчас мы работаем над основными возможностями приложения. Скоро добавятся лента, посты и другие функции!',
       verificationPending: 'Верификация в процессе',
       verificationNotice: 'Твоя заявка на рассмотрении. Обычно подтверждение занимает до 24 часов. После подтверждения откроются все возможности.',
+      notVerified: 'Ты не прошел верификацию',
+      continueVerification: 'Продолжить',
+    },
+
+    // Admin page
+    admin: {
+      title: 'Админ панель',
+      verifications: 'Верификации',
+      ratings: 'Оценки',
+      pending: 'В ожидании',
+      approved: 'Одобрено',
+      rejected: 'Отклонено',
+      noRequests: 'Заявок нет',
+      studentId: 'Студенческий билет',
+      approve: 'Одобрить',
+      reject: 'Отклонить',
+      rejectNote: 'Причина отклонения (необязательно):',
+      professor: 'Преподаватель',
+      comment: 'Комментарий',
+      delete: 'Удалить',
+      noPendingRatings: 'Нет оценок в ожидании',
     },
 
     // Common
@@ -472,6 +520,10 @@ export const translations = {
       login: 'Sign In',
       signup: 'Sign Up',
       signout: 'Sign Out',
+      feed: 'Feed',
+      professors: 'Professors',
+      profile: 'Profile',
+      admin: 'Admin',
     },
 
     // Landing page - Hero
@@ -677,6 +729,27 @@ export const translations = {
       subtitle: "We're currently building the main features of the app. Feed, posts, and other functions coming soon!",
       verificationPending: 'Verification pending',
       verificationNotice: 'Your application is under review. Usually confirmed within 24 hours. All features will be unlocked after verification.',
+      notVerified: 'You are not verified',
+      continueVerification: 'Continue',
+    },
+
+    // Admin page
+    admin: {
+      title: 'Admin Panel',
+      verifications: 'Verifications',
+      ratings: 'Ratings',
+      pending: 'Pending',
+      approved: 'Approved',
+      rejected: 'Rejected',
+      noRequests: 'No requests',
+      studentId: 'Student ID',
+      approve: 'Approve',
+      reject: 'Reject',
+      rejectNote: 'Rejection reason (optional):',
+      professor: 'Professor',
+      comment: 'Comment',
+      delete: 'Delete',
+      noPendingRatings: 'No pending ratings',
     },
 
     // Common

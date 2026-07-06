@@ -201,3 +201,109 @@ body.dark .how { background: #15151A; }
   .stats { gap: 28px; }
   .wait form { flex-direction: column; }
 }
+
+/* --- App Shell (authenticated pages) --- */
+.app-shell { min-height: 100vh; display: flex; flex-direction: column; background: var(--fog); }
+.app-header {
+  background: var(--paper); border-bottom: 1px solid var(--line);
+  padding: 16px 56px; display: flex; align-items: center; gap: 32px;
+  position: sticky; top: 0; z-index: 100;
+}
+.app-nav { display: flex; gap: 4px; flex: 1; }
+.nav-link {
+  padding: 10px 16px; border-radius: 10px; font-size: 15px; font-weight: 500;
+  color: var(--ink-2); transition: all 0.2s;
+}
+.nav-link:hover { background: var(--fog); }
+.nav-link.active { background: var(--red-tint); color: var(--red); font-weight: 600; }
+.app-header-right { display: flex; align-items: center; gap: 12px; }
+.user-name-badge {
+  font-size: 14px; font-weight: 600; color: var(--ink);
+  padding: 8px 14px; background: var(--fog); border-radius: 99px;
+}
+.app-main { flex: 1; padding: 32px 56px; max-width: 1200px; width: 100%; margin: 0 auto; }
+
+@media (max-width: 960px) {
+  .app-header { padding: 16px 20px; gap: 16px; }
+  .app-nav { gap: 2px; }
+  .nav-link { padding: 8px 12px; font-size: 14px; }
+  .user-name-badge { display: none; }
+  .app-main { padding: 24px 20px; }
+}
+
+/* --- Admin Panel --- */
+.admin-container { max-width: 900px; }
+.admin-tabs {
+  display: flex; gap: 8px; margin-bottom: 32px;
+  border-bottom: 1px solid var(--line); padding-bottom: 2px;
+}
+.admin-tab {
+  padding: 12px 24px; font-size: 15px; font-weight: 600;
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+.admin-tab:hover { color: var(--ink-2); }
+.admin-tab.active {
+  color: var(--red); border-bottom-color: var(--red);
+}
+
+.status-filters {
+  display: flex; gap: 8px; margin-bottom: 24px;
+}
+.filter-btn {
+  padding: 8px 16px; font-size: 14px; font-weight: 500;
+  background: var(--paper); border: 1px solid var(--line);
+  border-radius: 8px; cursor: pointer; color: var(--ink-2);
+  transition: all 0.2s;
+}
+.filter-btn:hover { background: var(--fog); }
+.filter-btn.active {
+  background: var(--red-tint); color: var(--red);
+  border-color: var(--red-soft); font-weight: 600;
+}
+
+.verification-list, .ratings-list {
+  display: flex; flex-direction: column; gap: 16px;
+}
+
+.verification-card, .rating-card {
+  background: var(--paper); border: 1px solid var(--line);
+  border-radius: 12px; padding: 20px;
+}
+
+.verification-header, .rating-header {
+  display: flex; justify-content: space-between;
+  align-items: start; margin-bottom: 16px;
+}
+
+.verification-image {
+  margin: 16px 0;
+}
+
+.verification-actions, .rating-actions {
+  display: flex; gap: 12px; margin-top: 16px;
+}
+
+.rating-body {
+  display: flex; flex-direction: column; gap: 12px;
+}
+
+.rating-scores {
+  display: flex; gap: 16px; flex-wrap: wrap;
+  font-size: 14px; color: var(--ink-2);
+}
+
+.rating-comment {
+  padding: 12px; background: var(--fog); border-radius: 8px;
+  font-size: 14px; color: var(--ink-2);
+}
+
+@media (max-width: 640px) {
+  .admin-tabs { gap: 4px; }
+  .admin-tab { padding: 10px 16px; font-size: 14px; }
+  .status-filters { flex-wrap: wrap; }
+  .verification-header, .rating-header { flex-direction: column; gap: 8px; }
+  .verification-actions, .rating-actions { flex-direction: column; }
+  .verification-actions button, .rating-actions button { width: 100%; }
+}

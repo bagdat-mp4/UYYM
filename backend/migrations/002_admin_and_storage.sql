@@ -1,0 +1,19 @@
+-- Migration 002: Admin roles and storage policies
+-- Applied by: Owner (already applied in Supabase)
+-- Date: 2026-07-06
+--
+-- This file documents the SQL migration that was already run in Supabase.
+-- The owner should paste the exact SQL they ran here for documentation.
+--
+-- Summary of changes:
+-- 1. Added profiles.is_admin boolean column
+-- 2. Created is_admin() helper function
+-- 3. Set storage policies on 'verifications' bucket:
+--    - Users can upload only to {uid}/...
+--    - Users can read their own files
+--    - Admins can read all files
+-- 4. Added admin RLS policies:
+--    - Allow admins to select/update ALL verification_requests
+--    - Allow admins to select/update ALL professor_ratings
+--
+-- TODO: Owner should paste the exact SQL migration here for reference.
