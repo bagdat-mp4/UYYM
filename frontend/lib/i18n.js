@@ -498,7 +498,7 @@ export const translations = {
       charactersRemaining: 'символов осталось',
       verifiedOnlyTitle: 'Для публикации нужна верификация',
       verifiedOnlyText: 'Ты можешь читать ленту, а для публикации постов заверши студенческую проверку.',
-      continueVerification: 'Продолжить',
+      continueVerification: 'Продолжить верификацию',
       emptyTitle: 'Постов пока нет',
       emptyText: 'Стань первым, кто поделится новостью университета или мыслью.',
       loadError: 'Не удалось загрузить ленту. Попробуй еще раз чуть позже.',
