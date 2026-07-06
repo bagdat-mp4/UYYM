@@ -3,13 +3,13 @@
 import Header from '@/components/Header';
 import Logo from '@/components/Logo';
 import WaitlistForm from '@/components/WaitlistForm';
-import { ShieldCheck, Star, Layers, Users, CalendarDays, Target } from 'lucide-react';
+import { ShieldCheck, Star, Layers, UsersRound, CalendarDays, Target } from 'lucide-react';
 import { useLang } from '@/lib/LanguageProvider';
 
 function Constellation() {
   return (
     <svg className="constel" viewBox="0 0 1440 560" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <g stroke="#fff" strokeWidth="2.5" strokeLinecap="round">
+      <g stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
         <line x1="140" y1="120" x2="330" y2="70" />
         <line x1="330" y1="70" x2="410" y2="240" />
         <line x1="140" y1="120" x2="250" y2="330" />
@@ -20,7 +20,7 @@ function Constellation() {
         <line x1="980" y1="420" x2="1210" y2="360" />
         <line x1="620" y1="480" x2="820" y2="520" />
       </g>
-      <g fill="#fff">
+      <g fill="currentColor">
         <circle cx="140" cy="120" r="9" />
         <circle cx="330" cy="70" r="7" />
         <circle cx="410" cy="240" r="8" />
@@ -40,7 +40,7 @@ const FEATURES_ICONS = [
   ShieldCheck,
   Star,
   Layers,
-  Users,
+  UsersRound,
   CalendarDays,
   Target,
 ];
@@ -87,21 +87,6 @@ export default function Home() {
         </div>
       </section>
 
-      <div className="stats">
-        <div className="stat">
-          <b>600 000+</b>
-          <span>{t('stats.students')}</span>
-        </div>
-        <div className="stat">
-          <b>1-ші</b>
-          <span>{t('stats.firstUni')}</span>
-        </div>
-        <div className="stat">
-          <b>100%</b>
-          <span>{t('stats.verified')}</span>
-        </div>
-      </div>
-
       <section className="feat" id="feat">
         <h2>{t('features.title')}</h2>
         <p className="sub">{t('features.subtitle')}</p>
@@ -109,7 +94,7 @@ export default function Home() {
           {FEATURES.map((f) => (
             <div className="fcard" key={f.titleKey}>
               <div className="fi">
-                <f.Icon size={24} strokeWidth={2} color="currentColor" />
+                <f.Icon size={24} strokeWidth={1.75} color="currentColor" aria-hidden="true" />
               </div>
               <h3>{t(f.titleKey)}</h3>
               <p>{t(f.textKey)}</p>

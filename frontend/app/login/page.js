@@ -102,7 +102,7 @@ export default function LoginPage() {
               <button type="button" className={lang === 'en' ? 'on' : ''} onClick={() => setLang('en')}>ENG</button>
             </div>
             <button type="button" className="theme-btn" onClick={toggleTheme} title={t('common.theme')} aria-label={t('common.themeToggle')}>
-              {dark ? <Moon size={20} strokeWidth={2} color="currentColor" /> : <Sun size={20} strokeWidth={2} color="currentColor" />}
+              {dark ? <Moon size={20} strokeWidth={1.75} color="currentColor" /> : <Sun size={20} strokeWidth={1.75} color="currentColor" />}
             </button>
           </div>
 

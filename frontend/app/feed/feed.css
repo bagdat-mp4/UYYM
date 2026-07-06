@@ -161,10 +161,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--brand-600);
-  background: var(--red-tint);
-  border: 1px solid var(--red-soft);
-  border-radius: var(--r-sm);
+  color: var(--icon-strong);
+  background: var(--icon-surface);
+  border: 1px solid var(--icon-border);
+  border-radius: var(--r-pill);
 }
 
 .feed-verification-card p {

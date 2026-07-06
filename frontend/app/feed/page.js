@@ -154,7 +154,7 @@ export default function FeedPage() {
   if (loading) {
     return (
       <div className="feed-loading">
-        <Loader2 size={22} className="spin" aria-hidden="true" />
+        <Loader2 size={22} strokeWidth={1.75} className="spin" aria-hidden="true" />
         <span>{t('feed.loading')}</span>
       </div>
     );
@@ -166,14 +166,14 @@ export default function FeedPage() {
         <div className="feed-topline">
           <div>
             <span className="chip feed-chip">
-              <GraduationCap size={14} aria-hidden="true" />
+              <GraduationCap size={16} strokeWidth={1.75} aria-hidden="true" />
               {profile?.university?.short_name || t('feed.universityFallback')}
             </span>
             <h1>{t('feed.title')}</h1>
             <p>{t('feed.subtitle')}</p>
           </div>
           <button className="btn btn-ghost feed-refresh" onClick={loadPosts} disabled={postsLoading}>
-            <RefreshCw size={17} className={postsLoading ? 'spin' : ''} aria-hidden="true" />
+            <RefreshCw size={18} strokeWidth={1.75} className={postsLoading ? 'spin' : ''} aria-hidden="true" />
             {t('feed.refresh')}
           </button>
         </div>
@@ -209,9 +209,9 @@ export default function FeedPage() {
                 </span>
                 <button className="btn btn-red" type="submit" disabled={submitting}>
                   {submitting ? (
-                    <Loader2 size={17} className="spin" aria-hidden="true" />
+                    <Loader2 size={18} strokeWidth={1.75} className="spin" aria-hidden="true" />
                   ) : (
-                    <Send size={17} aria-hidden="true" />
+                    <Send size={18} strokeWidth={1.75} aria-hidden="true" />
                   )}
                   {submitting ? t('feed.publishing') : t('feed.publish')}
                 </button>
@@ -219,7 +219,7 @@ export default function FeedPage() {
 
               {composerErrorKey && (
                 <div className="feed-inline-error">
-                  <AlertCircle size={16} aria-hidden="true" />
+                  <AlertCircle size={16} strokeWidth={1.75} aria-hidden="true" />
                   {t(`feed.${composerErrorKey}`)}
                 </div>
               )}
@@ -227,7 +227,7 @@ export default function FeedPage() {
           ) : (
             <div className="feed-verification-card">
               <div className="feed-verification-icon">
-                <ShieldCheck size={22} aria-hidden="true" />
+                <ShieldCheck size={24} strokeWidth={1.75} aria-hidden="true" />
               </div>
               <div>
                 <h2>{t('feed.verifiedOnlyTitle')}</h2>
@@ -243,21 +243,21 @@ export default function FeedPage() {
         <section className="feed-list" aria-live="polite">
           {postsLoading && (
             <div className="feed-state-card">
-              <Loader2 size={22} className="spin" aria-hidden="true" />
+              <Loader2 size={22} strokeWidth={1.75} className="spin" aria-hidden="true" />
               <span>{t('feed.loading')}</span>
             </div>
           )}
 
           {!postsLoading && feedErrorKey && (
             <div className="feed-state-card error">
-              <AlertCircle size={22} aria-hidden="true" />
+              <AlertCircle size={22} strokeWidth={1.75} aria-hidden="true" />
               <span>{t(`feed.${feedErrorKey}`)}</span>
             </div>
           )}
 
           {!postsLoading && !feedErrorKey && posts.length === 0 && (
             <div className="feed-empty">
-              <UserRound size={26} aria-hidden="true" />
+              <UserRound size={28} strokeWidth={1.75} aria-hidden="true" />
               <h2>{t('feed.emptyTitle')}</h2>
               <p>{t('feed.emptyText')}</p>
             </div>

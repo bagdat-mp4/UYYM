@@ -42,9 +42,9 @@ export default function Header() {
         </div>
         <button type="button" className="theme-btn" onClick={toggleTheme} title={t('common.theme')} aria-label={t('common.themeToggle')}>
           {dark ? (
-            <Moon size={20} strokeWidth={2} color="currentColor" />
+            <Moon size={20} strokeWidth={1.75} color="currentColor" />
           ) : (
-            <Sun size={20} strokeWidth={2} color="currentColor" />
+            <Sun size={20} strokeWidth={1.75} color="currentColor" />
           )}
         </button>
         <Link className="btn btn-ghost" href="/login">{t('header.login')}</Link>
