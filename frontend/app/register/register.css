@@ -1,0 +1,254 @@
+.auth {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.auth-side {
+  background: var(--red);
+  color: #fff;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 44px 52px;
+  overflow: hidden;
+}
+
+.auth-side h2 {
+  font-size: 34px;
+  line-height: 1.25;
+  max-width: 380px;
+  position: relative;
+}
+
+.auth-side .q {
+  position: relative;
+  font-size: 15px;
+  opacity: 0.9;
+  max-width: 360px;
+  line-height: 1.6;
+}
+
+.constel {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.16;
+  width: 100%;
+  height: 100%;
+}
+
+.auth-form {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  background: var(--paper);
+}
+
+.auth-box {
+  width: 100%;
+  max-width: 400px;
+}
+
+.auth-box.wide {
+  max-width: 520px;
+}
+
+.auth-box h1 {
+  font-size: 26px;
+  margin: 22px 0 6px;
+}
+
+.auth-box .sub {
+  color: var(--muted);
+  font-size: 14.5px;
+  margin-bottom: 26px;
+}
+
+.wizard {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 26px;
+}
+
+.wstep {
+  flex: 1;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.wstep .bar {
+  height: 5px;
+  border-radius: 99px;
+  background: var(--line);
+  margin-bottom: 7px;
+}
+
+.wstep.done .bar,
+.wstep.now .bar {
+  background: var(--red);
+}
+
+.wstep.now {
+  color: var(--red);
+}
+
+.field {
+  margin-bottom: 16px;
+}
+
+label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: -10px;
+  margin-bottom: 16px;
+}
+
+.link {
+  color: var(--red);
+  font-weight: 600;
+}
+
+.error-msg {
+  background: var(--red-tint);
+  color: var(--red);
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  margin-bottom: 16px;
+  border: 1px solid var(--red-soft);
+}
+
+/* University picker */
+.upick {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.uopt {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--paper);
+}
+
+.uopt:hover {
+  border-color: var(--red);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.uopt.sel {
+  border-color: var(--red);
+  background: var(--red-tint);
+}
+
+.ul {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  color: #fff;
+  flex: 0 0 auto;
+}
+
+.uopt h4 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.uopt .m {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.rd {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  margin-left: auto;
+  flex: 0 0 auto;
+  position: relative;
+}
+
+.uopt.sel .rd {
+  border-color: var(--red);
+}
+
+.uopt.sel .rd::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--red);
+}
+
+/* Upload area */
+.upload {
+  border: 2px dashed var(--line);
+  border-radius: 12px;
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--muted);
+  font-size: 14px;
+  display: block;
+}
+
+.upload:hover {
+  border-color: var(--red);
+  background: var(--red-tint);
+}
+
+.upload b {
+  color: var(--red);
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .auth {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-side {
+    display: none;
+  }
+
+  .row2 {
+    grid-template-columns: 1fr;
+  }
+}
