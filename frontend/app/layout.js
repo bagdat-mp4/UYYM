@@ -16,11 +16,11 @@ export const metadata = {
   title: 'Uyym — Қазақстан студенттері бір жерде',
   description:
     'Uyym — верификацияланған студенттік платформа: басқа универдің студенттерімен таныс, материал бөліс, оқытушыларды бағала, ивенттерге қатыс.',
-  metadataBase: new URL('https://uyym.kz'),
+  metadataBase: new URL('https://uyym.app'),
   openGraph: {
     title: 'Uyym — студенттер бір жерде',
     description: 'Қазақстанның верификацияланған студенттік платформасы',
-    url: 'https://uyym.kz',
+    url: 'https://uyym.app',
     siteName: 'Uyym',
     locale: 'kk_KZ',
     type: 'website',
