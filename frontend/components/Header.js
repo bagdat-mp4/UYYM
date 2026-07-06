@@ -3,10 +3,12 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Sun, Moon } from 'lucide-react';
+import { useLang } from '@/lib/LanguageProvider';
 import Logo from './Logo';
 
 export default function Header() {
   const [dark, setDark] = useState(false);
+  const { lang, setLang, t } = useLang();
 
   useEffect(() => {
     const saved = localStorage.getItem('uyym-theme');
@@ -27,26 +29,26 @@ export default function Header() {
     <header className="land-head">
       <Logo />
       <nav className="land-nav">
-        <a href="#feat">Мүмкіндіктер</a>
-        <a href="#how">Қалай жұмыс істейді</a>
-        <a href="#unis">Университеттер</a>
-        <a href="#wait">Байланыс</a>
+        <a href="#feat">{t('header.features')}</a>
+        <a href="#how">{t('header.howItWorks')}</a>
+        <a href="#unis">{t('header.universities')}</a>
+        <a href="#wait">{t('header.contact')}</a>
       </nav>
       <div className="head-actions">
         <div className="lang">
-          <span className="on">ҚАЗ</span>
-          <span>РУС</span>
-          <span>ENG</span>
+          <span className={lang === 'kk' ? 'on' : ''} onClick={() => setLang('kk')}>ҚАЗ</span>
+          <span className={lang === 'ru' ? 'on' : ''} onClick={() => setLang('ru')}>РУС</span>
+          <span className={lang === 'en' ? 'on' : ''} onClick={() => setLang('en')}>ENG</span>
         </div>
-        <button className="theme-btn" onClick={toggleTheme} title="Тақырып" aria-label="Тақырыпты ауыстыру">
+        <button className="theme-btn" onClick={toggleTheme} title={t('common.theme')} aria-label={t('common.themeToggle')}>
           {dark ? (
             <Moon size={20} strokeWidth={2} color="#9BA0B0" />
           ) : (
             <Sun size={20} strokeWidth={2} color="#69728A" />
           )}
         </button>
-        <Link className="btn btn-ghost" href="/login">Кіру</Link>
-        <Link className="btn btn-red" href="/register">Тіркелу</Link>
+        <Link className="btn btn-ghost" href="/login">{t('header.login')}</Link>
+        <Link className="btn btn-red" href="/register">{t('header.signup')}</Link>
       </div>
     </header>
   );

@@ -6,10 +6,12 @@ import Link from 'next/link';
 import { Sun, Moon } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { supabase } from '@/lib/supabase';
+import { useLang } from '@/lib/LanguageProvider';
 import './login.css';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { lang, setLang, t } = useLang();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -35,11 +37,11 @@ export default function LoginPage() {
 
       if (authError) {
         if (authError.message.includes('Invalid login credentials')) {
-          setError('Электрондық пошта немесе құпиясөз қате');
+          setError(t('login.errorInvalidCreds'));
         } else if (authError.message.includes('Email not confirmed')) {
-          setError('Поштаңызды растаңыз (inbox тексеріңіз)');
+          setError(t('login.errorEmailNotConfirmed'));
         } else {
-          setError('Кіру кезінде қате болды. Қайталап көріңіз.');
+          setError(t('login.errorGeneric'));
         }
         setLoading(false);
         return;
@@ -47,7 +49,7 @@ export default function LoginPage() {
 
       router.push('/feed');
     } catch (err) {
-      setError('Желі қатесі. Интернет байланысын тексеріңіз.');
+      setError(t('login.errorNetwork'));
       setLoading(false);
     }
   };
@@ -83,11 +85,11 @@ export default function LoginPage() {
         <div style={{ position: 'relative' }}>
           <Logo size={40} wordSize={24} white />
         </div>
-        <h2>Қайта қош келдің! Желі сені күтіп тұр.</h2>
+        <h2>{t('login.sideTitle')}</h2>
         <p className="q">
-          «Uyym арқылы Сатпаевтағы командамды таптым — хакатонда 2-орын алдық.»
+          {t('login.sideQuote')}
           <br />
-          <b>— Аружан, КБТУ, 3-курс</b>
+          <b>{t('login.sideAuthor')}</b>
         </p>
       </div>
 
@@ -95,17 +97,17 @@ export default function LoginPage() {
         <div className="auth-box">
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
             <div className="lang">
-              <span className="on">ҚАЗ</span>
-              <span>РУС</span>
-              <span>ENG</span>
+              <span className={lang === 'kk' ? 'on' : ''} onClick={() => setLang('kk')}>ҚАЗ</span>
+              <span className={lang === 'ru' ? 'on' : ''} onClick={() => setLang('ru')}>РУС</span>
+              <span className={lang === 'en' ? 'on' : ''} onClick={() => setLang('en')}>ENG</span>
             </div>
-            <button className="theme-btn" onClick={toggleTheme} title="Тақырып" aria-label="Тақырыпты ауыстыру">
+            <button className="theme-btn" onClick={toggleTheme} title={t('common.theme')} aria-label={t('common.themeToggle')}>
               {dark ? <Moon size={20} strokeWidth={2} color="#9BA0B0" /> : <Sun size={20} strokeWidth={2} color="#69728A" />}
             </button>
           </div>
 
-          <h1>Кіру</h1>
-          <p className="sub">Uyym аккаунтыңа кір</p>
+          <h1>{t('login.title')}</h1>
+          <p className="sub">{t('login.subtitle')}</p>
 
           <form onSubmit={handleLogin}>
             {error && (
@@ -123,7 +125,7 @@ export default function LoginPage() {
             )}
 
             <div className="field">
-              <label>Электрондық пошта</label>
+              <label>{t('login.email')}</label>
               <input
                 type="email"
                 placeholder="student@kbtu.kz"
@@ -135,7 +137,7 @@ export default function LoginPage() {
             </div>
 
             <div className="field">
-              <label>Құпиясөз</label>
+              <label>{t('login.password')}</label>
               <input
                 type="password"
                 placeholder="••••••••"
@@ -147,16 +149,16 @@ export default function LoginPage() {
             </div>
 
             <p className="forgot">
-              <a className="link" href="#">Құпиясөзді ұмыттың ба?</a>
+              <a className="link" href="#">{t('login.forgotPassword')}</a>
             </p>
 
             <button type="submit" className="btn btn-red" style={{ width: '100%' }} disabled={loading}>
-              {loading ? 'Күте тұрыңыз...' : 'Кіру'}
+              {loading ? t('login.loading') : t('login.loginBtn')}
             </button>
           </form>
 
           <p style={{ textAlign: 'center', fontSize: 14, marginTop: 22 }}>
-            Аккаунтың жоқ па? <Link className="link" href="/register">Тіркелу</Link>
+            {t('login.noAccount')} <Link className="link" href="/register">{t('login.signupLink')}</Link>
           </p>
         </div>
       </div>

@@ -6,11 +6,13 @@ import Link from 'next/link';
 import { Sun, Moon, Upload } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { supabase } from '@/lib/supabase';
+import { useLang } from '@/lib/LanguageProvider';
 import './register.css';
 
 function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { lang, setLang, t } = useLang();
   const [step, setStep] = useState(1);
   const [dark, setDark] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -34,7 +36,6 @@ function RegisterContent() {
   const [document, setDocument] = useState(null);
   const [userId, setUserId] = useState(null);
 
-  // Отслеживание email confirmation
   const [emailConfirmationNeeded, setEmailConfirmationNeeded] = useState(false);
 
   useEffect(() => {
@@ -73,12 +74,12 @@ function RegisterContent() {
     setError('');
 
     if (password !== confirmPassword) {
-      setError('Құпиясөздер сәйкес келмейді');
+      setError(t('register.errorPasswordMismatch'));
       return;
     }
 
     if (password.length < 8) {
-      setError('Құпиясөз кемінде 8 таңбадан тұруы керек');
+      setError(t('register.errorPasswordLength'));
       return;
     }
 
@@ -98,15 +99,14 @@ function RegisterContent() {
 
       if (signUpError) {
         if (signUpError.message.includes('already registered')) {
-          setError('Бұл пошта бұрын тіркелген. Кіру бетіне өтіңіз.');
+          setError(t('register.errorAlreadyRegistered'));
         } else {
-          setError('Тіркелу кезінде қате болды. Қайталап көріңіз.');
+          setError(t('register.errorGeneric'));
         }
         setLoading(false);
         return;
       }
 
-      // Проверяем, нужна ли email confirmation
       if (data.user && !data.session) {
         setEmailConfirmationNeeded(true);
         setLoading(false);
@@ -120,14 +120,14 @@ function RegisterContent() {
       }
       setLoading(false);
     } catch (err) {
-      setError('Желі қатесі. Интернет байланысын тексеріңіз.');
+      setError(t('register.errorNetwork'));
       setLoading(false);
     }
   };
 
   const handleStep2 = async () => {
     if (!selectedUniversity) {
-      setError('Университетті таңдаңыз');
+      setError(t('register.errorSelectUniversity'));
       return;
     }
 
@@ -138,7 +138,7 @@ function RegisterContent() {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
-        setError('Сессия аяқталды. Қайтадан кіріңіз.');
+        setError(t('register.errorSessionExpired'));
         setLoading(false);
         return;
       }
@@ -149,7 +149,7 @@ function RegisterContent() {
         .eq('id', user.id);
 
       if (updateError) {
-        setError('Профильді жаңарту кезінде қате болды');
+        setError(t('register.errorProfileUpdate'));
         setLoading(false);
         return;
       }
@@ -159,7 +159,7 @@ function RegisterContent() {
       window.history.pushState({}, '', '/register?step=3');
       setLoading(false);
     } catch (err) {
-      setError('Қате болды. Қайталап көріңіз.');
+      setError(t('register.errorGeneric'));
       setLoading(false);
     }
   };
@@ -169,12 +169,12 @@ function RegisterContent() {
     setError('');
 
     if (!document) {
-      setError('Студенттік билет фотосын жүктеңіз');
+      setError(t('register.errorUploadDocument'));
       return;
     }
 
     if (!major.trim()) {
-      setError('Мамандықты енгізіңіз');
+      setError(t('register.errorEnterMajor'));
       return;
     }
 
@@ -184,12 +184,11 @@ function RegisterContent() {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
-        setError('Сессия аяқталды. Қайтадан кіріңіз.');
+        setError(t('register.errorSessionExpired'));
         setLoading(false);
         return;
       }
 
-      // Update profile with major and course
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
@@ -202,7 +201,6 @@ function RegisterContent() {
         console.error('Profile update error:', updateError);
       }
 
-      // Upload document
       const fileExt = document.name.split('.').pop();
       const fileName = `${user.id}/document.${fileExt}`;
 
@@ -211,12 +209,11 @@ function RegisterContent() {
         .upload(fileName, document, { upsert: true });
 
       if (uploadError) {
-        setError('Файлды жүктеу кезінде қате болды');
+        setError(t('register.errorFileUpload'));
         setLoading(false);
         return;
       }
 
-      // Create verification request
       const { error: requestError } = await supabase
         .from('verification_requests')
         .insert({
@@ -226,15 +223,14 @@ function RegisterContent() {
         });
 
       if (requestError) {
-        setError('Өтінім жасау кезінде қате болды');
+        setError(t('register.errorVerificationRequest'));
         setLoading(false);
         return;
       }
 
-      // Success! Redirect to feed
       router.push('/feed');
     } catch (err) {
-      setError('Қате болды. Қайталап көріңіз.');
+      setError(t('register.errorGeneric'));
       setLoading(false);
     }
   };
@@ -243,7 +239,7 @@ function RegisterContent() {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
-        setError('Файл өлшемі 10 МБ аспауы керек');
+        setError(t('register.errorFileSize'));
         return;
       }
       setDocument(file);
@@ -264,16 +260,16 @@ function RegisterContent() {
           <div style={{ position: 'relative' }}>
             <Logo size={40} wordSize={24} white />
           </div>
-          <h2>Поштаңызды тексеріңіз!</h2>
+          <h2>{t('register.emailConfirmSideTitle')}</h2>
           <p className="q">
-            {email} адресіне растау хаты жібердік. Хатты ашып, сілтемені басыңыз, содан кейін осы бетке қайтып келіңіз.
+            {t('register.emailSentTo')} <b>{email}</b> {t('register.emailConfirmSideText')}
           </p>
         </div>
         <div className="auth-form">
           <div className="auth-box">
-            <h1>Email растау</h1>
+            <h1>{t('register.emailConfirmTitle')}</h1>
             <p className="sub" style={{ marginBottom: 20 }}>
-              Тіркелу үшін поштаңызды растаңыз
+              {t('register.emailConfirmSubtitle')}
             </p>
             <div style={{
               background: 'var(--red-tint)',
@@ -285,16 +281,16 @@ function RegisterContent() {
               lineHeight: 1.6
             }}>
               <p style={{ marginBottom: 10 }}>
-                ✉️ <b>{email}</b> поштасына хат жібердік
+                ✉️ <b>{email}</b>
               </p>
               <p style={{ marginBottom: 10 }}>
-                1. Inbox немесе Spam қалтасын тексеріңіз<br />
-                2. Хаттағы "Confirm Email" сілтемесін басыңыз<br />
-                3. Осы бетке қайтып оралыңыз
+                {t('register.emailConfirmStep1')}<br />
+                {t('register.emailConfirmStep2')}<br />
+                {t('register.emailConfirmStep3')}
               </p>
             </div>
             <Link href="/login" className="btn btn-red" style={{ width: '100%', textAlign: 'center' }}>
-              Растадым, кіру бетіне өту
+              {t('register.emailConfirmed')}
             </Link>
           </div>
         </div>
@@ -311,24 +307,20 @@ function RegisterContent() {
         </div>
         {step === 1 && (
           <>
-            <h2>2 минут — және сен Қазақстанның студенттік желісіндесің.</h2>
-            <p className="q">600 000+ студент. Бір платформа. Тек шын, расталған адамдар.</p>
+            <h2>{t('register.side1Title')}</h2>
+            <p className="q">{t('register.side1Text')}</p>
           </>
         )}
         {step === 2 && (
           <>
-            <h2>Универің — сенің Uyym-дағы қауымың.</h2>
-            <p className="q">
-              Университетті таңдағанда өз универіңнің лентасына, материалдарына және оқытушылар рейтингіне қол жеткізесің.
-            </p>
+            <h2>{t('register.side2Title')}</h2>
+            <p className="q">{t('register.side2Text')}</p>
           </>
         )}
         {step === 3 && (
           <>
-            <h2>Соңғы қадам — студент екеніңді растау.</h2>
-            <p className="q">
-              Верификация не үшін керек? Uyym-да тек шын студенттер бар — сондықтан мұнда сенім жоғары, спам жоқ.
-            </p>
+            <h2>{t('register.side3Title')}</h2>
+            <p className="q">{t('register.side3Text')}</p>
           </>
         )}
       </div>
@@ -337,31 +329,31 @@ function RegisterContent() {
         <div className={`auth-box ${step === 2 ? 'wide' : ''}`}>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
             <div className="lang">
-              <span className="on">ҚАЗ</span>
-              <span>РУС</span>
-              <span>ENG</span>
+              <span className={lang === 'kk' ? 'on' : ''} onClick={() => setLang('kk')}>ҚАЗ</span>
+              <span className={lang === 'ru' ? 'on' : ''} onClick={() => setLang('ru')}>РУС</span>
+              <span className={lang === 'en' ? 'on' : ''} onClick={() => setLang('en')}>ENG</span>
             </div>
-            <button className="theme-btn" onClick={toggleTheme} title="Тақырып" aria-label="Тақырыпты ауыстыру">
+            <button className="theme-btn" onClick={toggleTheme} title={t('common.theme')} aria-label={t('common.themeToggle')}>
               {dark ? <Moon size={20} strokeWidth={2} color="#9BA0B0" /> : <Sun size={20} strokeWidth={2} color="#69728A" />}
             </button>
           </div>
 
-          <h1>Тіркелу</h1>
+          <h1>{t('register.title')}</h1>
           <p className="sub">
-            {step === 1 && '1-қадам: аккаунт жасау'}
-            {step === 2 && '2-қадам: университетіңді таңда'}
-            {step === 3 && '3-қадам: студент екеніңді растау'}
+            {step === 1 && t('register.step1Title')}
+            {step === 2 && t('register.step2Title')}
+            {step === 3 && t('register.step3Title')}
           </p>
 
           <div className="wizard">
             <div className={`wstep ${step === 1 ? 'now' : 'done'}`}>
-              <div className="bar"></div>Аккаунт
+              <div className="bar"></div>{t('register.stepAccount')}
             </div>
             <div className={`wstep ${step === 2 ? 'now' : step > 2 ? 'done' : ''}`}>
-              <div className="bar"></div>Университет
+              <div className="bar"></div>{t('register.stepUniversity')}
             </div>
             <div className={`wstep ${step === 3 ? 'now' : ''}`}>
-              <div className="bar"></div>Верификация
+              <div className="bar"></div>{t('register.stepVerification')}
             </div>
           </div>
 
@@ -375,9 +367,9 @@ function RegisterContent() {
             <form onSubmit={handleStep1}>
               <div className="row2">
                 <div className="field">
-                  <label>Аты</label>
+                  <label>{t('register.firstName')}</label>
                   <input
-                    placeholder="Иван"
+                    placeholder={t('register.firstNamePlaceholder')}
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     required
@@ -385,9 +377,9 @@ function RegisterContent() {
                   />
                 </div>
                 <div className="field">
-                  <label>Тегі</label>
+                  <label>{t('register.lastName')}</label>
                   <input
-                    placeholder="Студентов"
+                    placeholder={t('register.lastNamePlaceholder')}
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     required
@@ -396,22 +388,22 @@ function RegisterContent() {
                 </div>
               </div>
               <div className="field">
-                <label>Электрондық пошта</label>
+                <label>{t('register.email')}</label>
                 <input
                   type="email"
-                  placeholder="student@kbtu.kz"
+                  placeholder={t('register.emailPlaceholder')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   disabled={loading}
                 />
               </div>
-              <p className="hint">ЖОО почтаң болса — верификация тезірек өтеді</p>
+              <p className="hint">{t('register.hint')}</p>
               <div className="field">
-                <label>Құпиясөз</label>
+                <label>{t('register.password')}</label>
                 <input
                   type="password"
-                  placeholder="Кемінде 8 таңба"
+                  placeholder={t('register.passwordPlaceholder')}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -420,10 +412,10 @@ function RegisterContent() {
                 />
               </div>
               <div className="field">
-                <label>Құпиясөзді қайтала</label>
+                <label>{t('register.confirmPassword')}</label>
                 <input
                   type="password"
-                  placeholder="Құпиясөзді қайтала"
+                  placeholder={t('register.confirmPasswordPlaceholder')}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
@@ -431,10 +423,10 @@ function RegisterContent() {
                 />
               </div>
               <button type="submit" className="btn btn-red" style={{ width: '100%' }} disabled={loading}>
-                {loading ? 'Күте тұрыңыз...' : 'Жалғастыру'}
+                {loading ? t('register.loading') : t('register.continueBtn')}
               </button>
               <p style={{ textAlign: 'center', fontSize: 14, marginTop: 22 }}>
-                Аккаунтың бар ма? <Link className="link" href="/login">Кіру</Link>
+                {t('register.hasAccount')} <Link className="link" href="/login">{t('register.loginLink')}</Link>
               </p>
             </form>
           )}
@@ -443,7 +435,7 @@ function RegisterContent() {
             <>
               <div className="field">
                 <input
-                  placeholder="🔍  Универіңді ізде…"
+                  placeholder={t('register.searchPlaceholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -472,10 +464,10 @@ function RegisterContent() {
                 onClick={handleStep2}
                 disabled={loading || !selectedUniversity}
               >
-                {loading ? 'Күте тұрыңыз...' : 'Жалғастыру'}
+                {loading ? t('register.loading') : t('register.continueBtn')}
               </button>
               <p style={{ textAlign: 'center', fontSize: 12.5, color: 'var(--muted)', marginTop: 14 }}>
-                Универің тізімде жоқ па? <a className="link" href="#">Бізге хабарла</a> — қосамыз.
+                {t('register.uniNotListed')} <a className="link" href="#">{t('register.contactUs')}</a> {t('register.willAdd')}
               </p>
             </>
           )}
@@ -484,24 +476,24 @@ function RegisterContent() {
             <form onSubmit={handleStep3}>
               <div className="row2">
                 <div className="field">
-                  <label>Университет</label>
+                  <label>{t('register.university')}</label>
                   <input value={selectedUniversity?.short_name || ''} disabled />
                 </div>
                 <div className="field">
-                  <label>Курс</label>
+                  <label>{t('register.course')}</label>
                   <select value={course} onChange={(e) => setCourse(e.target.value)}>
-                    <option value="1">1-курс</option>
-                    <option value="2">2-курс</option>
-                    <option value="3">3-курс</option>
-                    <option value="4">4-курс</option>
-                    <option value="5">5-курс</option>
+                    <option value="1">{t('register.course1')}</option>
+                    <option value="2">{t('register.course2')}</option>
+                    <option value="3">{t('register.course3')}</option>
+                    <option value="4">{t('register.course4')}</option>
+                    <option value="5">{t('register.course5')}</option>
                   </select>
                 </div>
               </div>
               <div className="field">
-                <label>Мамандық</label>
+                <label>{t('register.major')}</label>
                 <input
-                  placeholder="Автоматтандыру және басқару"
+                  placeholder={t('register.majorPlaceholder')}
                   value={major}
                   onChange={(e) => setMajor(e.target.value)}
                   required
@@ -509,7 +501,7 @@ function RegisterContent() {
                 />
               </div>
               <div className="field">
-                <label>Студенттік билет / анықтама</label>
+                <label>{t('register.document')}</label>
                 <label htmlFor="file-upload" className="upload">
                   <input
                     id="file-upload"
@@ -519,21 +511,21 @@ function RegisterContent() {
                     style={{ display: 'none' }}
                   />
                   {document ? (
-                    <span>✓ {document.name}</span>
+                    <span>{t('register.documentSelected')} {document.name}</span>
                   ) : (
                     <>
-                      Файлды осында тарт немесе <b>таңдау</b>
+                      {t('register.uploadText')} <b>{t('register.uploadBold')}</b>
                       <br />
-                      <span style={{ fontSize: 12 }}>JPG, PNG немесе PDF · 10 МБ дейін</span>
+                      <span style={{ fontSize: 12 }}>{t('register.uploadHint')}</span>
                     </>
                   )}
                 </label>
               </div>
               <button type="submit" className="btn btn-red" style={{ width: '100%' }} disabled={loading}>
-                {loading ? 'Жүктелуде...' : 'Растауға жіберу'}
+                {loading ? t('register.uploading') : t('register.submitBtn')}
               </button>
               <p style={{ textAlign: 'center', fontSize: 12.5, color: 'var(--muted)', marginTop: 14 }}>
-                Тексеру әдетте 24 сағатқа дейін. Дерек тек верификацияға қолданылады.
+                {t('register.verificationNotice')}
               </p>
             </form>
           )}
@@ -575,7 +567,7 @@ function Constellation() {
 
 export default function RegisterPage() {
   return (
-    <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Жүктелуде...</div>}>
+    <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>}>
       <RegisterContent />
     </Suspense>
   );

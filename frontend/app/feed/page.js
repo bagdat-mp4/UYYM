@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Logo from '@/components/Logo';
 import { supabase } from '@/lib/supabase';
+import { useLang } from '@/lib/LanguageProvider';
 import './feed.css';
 
 export default function FeedPage() {
   const router = useRouter();
+  const { t } = useLang();
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -48,7 +50,7 @@ export default function FeedPage() {
   if (loading) {
     return (
       <div className="feed-loading">
-        <p>Жүктелуде...</p>
+        <p>{t('feed.loading')}</p>
       </div>
     );
   }
@@ -66,7 +68,7 @@ export default function FeedPage() {
             </div>
           )}
           <button className="btn btn-ghost" onClick={handleSignOut}>
-            Шығу
+            {t('header.signout')}
           </button>
         </div>
       </header>
@@ -74,19 +76,15 @@ export default function FeedPage() {
       <main className="feed-main">
         <div className="feed-stub">
           <h1>🚧</h1>
-          <h2>Лента жасалуда</h2>
-          <p>
-            Біз қазір қолданбаның негізгі мүмкіндіктерін жасап жатырмыз.
-            Жақын арада лента, посттар және басқа функциялар қосылады!
-          </p>
+          <h2>{t('feed.title')}</h2>
+          <p>{t('feed.subtitle')}</p>
           {profile && !profile.is_verified && (
             <div className="verification-notice">
               <p>
-                <strong>Верификация күтілуде</strong>
+                <strong>{t('feed.verificationPending')}</strong>
               </p>
               <p style={{ fontSize: 14, marginTop: 8 }}>
-                Сіздің өтінім қаралуда. Әдетте 24 сағат ішінде расталады.
-                Растауды алғаннан кейін барлық мүмкіндіктер ашылады.
+                {t('feed.verificationNotice')}
               </p>
             </div>
           )}

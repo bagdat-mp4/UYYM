@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { useLang } from '@/lib/LanguageProvider';
 import { supabase } from '@/lib/supabase';
 
 export default function WaitlistForm() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState('idle'); // idle | loading | ok | dup | err
+  const { t } = useLang();
 
   const submit = async (e) => {
     e.preventDefault();
@@ -35,24 +37,24 @@ export default function WaitlistForm() {
       <form onSubmit={submit}>
         <input
           type="email"
-          placeholder="student@kbtu.kz"
+          placeholder={t('waitlist.emailPlaceholder')}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
           aria-label="Email"
         />
         <button className="btn btn-red" type="submit" disabled={status === 'loading'}>
-          {status === 'loading' ? 'Жіберілуде…' : 'Жазылу'}
+          {status === 'loading' ? t('waitlist.loading') : t('waitlist.submitBtn')}
         </button>
       </form>
       {status === 'ok' && (
-        <div className="wait-msg ok">Дайын! Лаунч кезінде бірінші болып хабарлаймыз 🎉</div>
+        <div className="wait-msg ok">{t('waitlist.success')}</div>
       )}
       {status === 'dup' && (
-        <div className="wait-msg ok">Сен тізімде бұрыннан барсың — жақында хабарласамыз!</div>
+        <div className="wait-msg ok">{t('waitlist.duplicate')}</div>
       )}
       {status === 'err' && (
-        <div className="wait-msg err">Қате шықты. Почтаны тексеріп, қайта көріп көр.</div>
+        <div className="wait-msg err">{t('waitlist.error')}</div>
       )}
     </>
   );

@@ -1,4 +1,5 @@
 import { Poppins, Inter } from 'next/font/google';
+import { LanguageProvider } from '@/lib/LanguageProvider';
 import './globals.css';
 
 const poppins = Poppins({
@@ -30,7 +31,9 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="kk">
-      <body className={`${poppins.variable} ${inter.variable}`}>{children}</body>
+      <body className={`${poppins.variable} ${inter.variable}`}>
+        <LanguageProvider>{children}</LanguageProvider>
+      </body>
     </html>
   );
 }
