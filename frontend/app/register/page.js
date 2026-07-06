@@ -246,7 +246,7 @@ function RegisterContent() {
       const fileExt = document.name.split('.').pop();
       const fileName = `${user.id}/document.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('verifications')
         .upload(fileName, document, { upsert: true });
 
@@ -256,11 +256,14 @@ function RegisterContent() {
         return;
       }
 
+      // Store the clean relative path from upload response
+      const cleanPath = uploadData?.path || fileName;
+
       const { error: requestError } = await supabase
         .from('verification_requests')
         .insert({
           user_id: user.id,
-          document_url: fileName,
+          document_url: cleanPath,
           status: 'pending',
         });
 

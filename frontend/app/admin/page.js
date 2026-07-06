@@ -129,10 +129,26 @@ export default function AdminPage() {
 
   const getSignedUrl = async (documentUrl) => {
     if (!documentUrl) return null;
+
+    // Normalize path: strip "verifications/" prefix or full URL
+    let cleanPath = documentUrl;
+    if (cleanPath.includes('verifications/')) {
+      cleanPath = cleanPath.split('verifications/').pop();
+    }
+    if (cleanPath.startsWith('http')) {
+      const url = new URL(cleanPath);
+      cleanPath = url.pathname.split('/').slice(-1)[0];
+    }
+
     const { data, error } = await supabase.storage
       .from('verifications')
-      .createSignedUrl(documentUrl, 600);
-    return data?.signedUrl || null;
+      .createSignedUrl(cleanPath, 600);
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { signedUrl: data?.signedUrl };
   };
 
   if (loading) {
@@ -294,11 +310,21 @@ function VerificationCard({
   getSignedUrl,
   t
 }) {
-  const [imageUrl, setImageUrl] = useState(null);
+  const [documentData, setDocumentData] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (request.document_url) {
-      getSignedUrl(request.document_url).then(url => setImageUrl(url));
+      getSignedUrl(request.document_url).then(result => {
+        if (result?.error) {
+          setError(result.error);
+        } else if (result?.signedUrl) {
+          // Detect file type from original document_url
+          const ext = request.document_url.toLowerCase().split('.').pop();
+          const isPdf = ext === 'pdf';
+          setDocumentData({ url: result.signedUrl, isPdf });
+        }
+      });
     }
   }, [request.document_url]);
 
@@ -318,12 +344,51 @@ function VerificationCard({
         </div>
       </div>
 
-      {imageUrl && (
+      {error && (
         <div className="verification-image">
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
             {t('admin.studentId')}:
           </div>
-          <img src={imageUrl} alt="Student ID" style={{ maxWidth: '100%', borderRadius: 8 }} />
+          <div style={{ padding: 16, background: 'var(--red-tint)', color: 'var(--red)', borderRadius: 8, fontSize: 14 }}>
+            Error: {error}
+          </div>
+        </div>
+      )}
+
+      {documentData && !error && (
+        <div className="verification-image">
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+            {t('admin.studentId')}:
+          </div>
+          {documentData.isPdf ? (
+            <div>
+              <iframe
+                src={documentData.url}
+                style={{
+                  width: '100%',
+                  height: '500px',
+                  border: '1px solid var(--line)',
+                  borderRadius: 8
+                }}
+                title="Student ID PDF"
+              />
+              <a
+                href={documentData.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-ghost"
+                style={{ marginTop: 12, display: 'inline-block' }}
+              >
+                PDF-ті ашу ↗
+              </a>
+            </div>
+          ) : (
+            <img
+              src={documentData.url}
+              alt="Student ID"
+              style={{ maxWidth: '100%', borderRadius: 8 }}
+            />
+          )}
         </div>
       )}
 
