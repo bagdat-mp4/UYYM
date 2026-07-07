@@ -7,14 +7,33 @@ import { useLang } from '@/lib/LanguageProvider';
 import { supabase } from '@/lib/supabase';
 import AppShell from '@/components/AppShell';
 
+function localeFor(lang) {
+  if (lang === 'kk') return 'kk-KZ';
+  if (lang === 'ru') return 'ru-RU';
+  return 'en-US';
+}
+
+function formatAdminDate(value, lang) {
+  if (!value) return '';
+
+  return new Intl.DateTimeFormat(localeFor(lang), {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value));
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const { profile, loading } = useProfile();
-  const { t } = useLang();
+  const { lang, t } = useLang();
   const [activeTab, setActiveTab] = useState('verifications');
   const [statusFilter, setStatusFilter] = useState('pending');
   const [verificationRequests, setVerificationRequests] = useState([]);
   const [pendingRatings, setPendingRatings] = useState([]);
+  const [ratingsErrorKey, setRatingsErrorKey] = useState('');
   const [loadingData, setLoadingData] = useState(true);
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectNote, setRejectNote] = useState('');
@@ -54,18 +73,37 @@ export default function AdminPage() {
 
   const fetchPendingRatings = async () => {
     setLoadingData(true);
+    setRatingsErrorKey('');
     const { data, error } = await supabase
       .from('professor_ratings')
       .select(`
-        *,
+        id,
+        professor_id,
+        user_id,
+        clarity,
+        fairness,
+        usefulness,
+        comment,
+        is_approved,
+        created_at,
         profile:profiles(first_name, last_name),
-        professor:professors(first_name, last_name)
+        professor:professors(
+          id,
+          full_name,
+          department,
+          university_id,
+          university:universities(short_name, name)
+        )
       `)
       .eq('is_approved', false)
       .order('created_at', { ascending: false });
 
-    if (!error && data) {
-      setPendingRatings(data);
+    if (error) {
+      console.error('Pending professor ratings query failed:', error);
+      setPendingRatings([]);
+      setRatingsErrorKey('admin.ratingsLoadError');
+    } else {
+      setPendingRatings(data || []);
     }
     setLoadingData(false);
   };
@@ -106,25 +144,35 @@ export default function AdminPage() {
   };
 
   const handleApproveRating = async (ratingId) => {
+    setRatingsErrorKey('');
     const { error } = await supabase
       .from('professor_ratings')
       .update({ is_approved: true })
       .eq('id', ratingId);
 
-    if (!error) {
-      fetchPendingRatings();
+    if (error) {
+      console.error('Professor rating approval failed:', error);
+      setRatingsErrorKey('admin.ratingApproveError');
+      return;
     }
+
+    fetchPendingRatings();
   };
 
-  const handleDeleteRating = async (ratingId) => {
+  const handleRejectRating = async (ratingId) => {
+    setRatingsErrorKey('');
     const { error } = await supabase
       .from('professor_ratings')
       .delete()
       .eq('id', ratingId);
 
-    if (!error) {
-      fetchPendingRatings();
+    if (error) {
+      console.error('Professor rating rejection failed:', error);
+      setRatingsErrorKey('admin.ratingRejectError');
+      return;
     }
+
+    fetchPendingRatings();
   };
 
   const getSignedUrl = async (documentUrl) => {
@@ -244,6 +292,10 @@ export default function AdminPage() {
               <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>
                 {t('common.loading')}
               </div>
+            ) : ratingsErrorKey ? (
+              <div className="rating-card" style={{ color: 'var(--danger)', background: 'var(--danger-bg)', borderColor: 'var(--red-soft)' }}>
+                {t(ratingsErrorKey)}
+              </div>
             ) : pendingRatings.length === 0 ? (
               <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>
                 {t('admin.noPendingRatings')}
@@ -255,17 +307,29 @@ export default function AdminPage() {
                     <div className="rating-header">
                       <div>
                         <strong>{t('admin.professor')}:</strong>{' '}
-                        {rating.professor?.first_name} {rating.professor?.last_name}
+                        {rating.professor?.full_name || t('admin.unknownProfessor')}
+                        {rating.professor?.university && (
+                          <div style={{ fontSize: 14, color: 'var(--muted)', marginTop: 4 }}>
+                            {rating.professor.university.short_name || rating.professor.university.name}
+                          </div>
+                        )}
                       </div>
                       <div style={{ fontSize: 14, color: 'var(--muted)' }}>
-                        {rating.profile?.first_name} {rating.profile?.last_name}
+                        <div>
+                          <strong>{t('admin.student')}:</strong>{' '}
+                          {`${rating.profile?.first_name || ''} ${rating.profile?.last_name || ''}`.trim() || t('admin.unknownStudent')}
+                        </div>
+                        <div style={{ marginTop: 4 }}>
+                          <strong>{t('admin.submittedAt')}:</strong>{' '}
+                          {formatAdminDate(rating.created_at, lang)}
+                        </div>
                       </div>
                     </div>
                     <div className="rating-body">
                       <div className="rating-scores">
-                        <span>Clarity: {rating.clarity}/5</span>
-                        <span>Fairness: {rating.fairness}/5</span>
-                        <span>Usefulness: {rating.usefulness}/5</span>
+                        <span>{t('admin.clarity')}: {rating.clarity}/5</span>
+                        <span>{t('admin.fairness')}: {rating.fairness}/5</span>
+                        <span>{t('admin.usefulness')}: {rating.usefulness}/5</span>
                       </div>
                       {rating.comment && (
                         <div className="rating-comment">
@@ -282,9 +346,9 @@ export default function AdminPage() {
                       </button>
                       <button
                         className="btn btn-ghost"
-                        onClick={() => handleDeleteRating(rating.id)}
+                        onClick={() => handleRejectRating(rating.id)}
                       >
-                        {t('admin.delete')}
+                        {t('admin.reject')}
                       </button>
                     </div>
                   </div>
