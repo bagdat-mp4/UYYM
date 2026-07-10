@@ -10,7 +10,17 @@ BEGIN;
 DO $$
 DECLARE
   unexpected_policies text[];
-  broad_storage_policies text[];
+  conflicting_storage_policies text[] := ARRAY[]::text[];
+  owned_storage_policies constant text[] := ARRAY[
+    'materials_storage_read',
+    'materials_storage_insert',
+    'materials_storage_delete'
+  ]::text[];
+  storage_policy record;
+  read_expression text;
+  write_expression text;
+  read_has_mandatory_bucket_prefix boolean;
+  write_has_mandatory_bucket_prefix boolean;
   upgrade_required boolean;
 BEGIN
   IF to_regclass('public.materials') IS NULL
@@ -246,36 +256,115 @@ BEGIN
       unexpected_policies;
   END IF;
 
-  -- Reject obviously broad Storage policies that are not scoped by bucket_id.
-  -- Existing bucket-scoped policies, such as verification document policies,
-  -- remain untouched.
-  SELECT array_agg(policyname ORDER BY policyname)
-  INTO broad_storage_policies
-  FROM pg_policies
-  WHERE schemaname = 'storage'
-    AND tablename = 'objects'
-    AND policyname <> ALL (ARRAY[
-      'materials_storage_read',
-      'materials_storage_insert',
-      'materials_storage_delete'
-    ])
-    AND roles && ARRAY['public', 'anon', 'authenticated']::name[]
-    AND (
-      (
-        cmd IN ('ALL', 'SELECT', 'DELETE', 'UPDATE')
-        AND position('bucket_id' IN coalesce(qual, '')) = 0
-      )
-      OR
-      (
-        cmd IN ('ALL', 'INSERT', 'UPDATE')
-        AND position('bucket_id' IN coalesce(with_check, '')) = 0
-      )
-    );
+  -- Inspect every public/anon/authenticated storage.objects policy. The three
+  -- migration-owned names are enumerated too, but are safe to ignore here
+  -- because they are dropped and recreated exactly later in this transaction.
+  --
+  -- Arbitrary SQL policy semantics cannot be proven through catalog text. This
+  -- defensive check rejects explicit materials access, missing bucket scopes,
+  -- self-comparisons, IS NOT NULL scopes, bare TRUE grants, and expressions
+  -- that do not contain a recognizable literal bucket restriction. A manual
+  -- pg_policies review is still required before execution.
+  FOR storage_policy IN
+    SELECT policyname, roles, cmd, qual, with_check
+    FROM pg_policies
+    WHERE schemaname = 'storage'
+      AND tablename = 'objects'
+      AND roles && ARRAY['public', 'anon', 'authenticated']::name[]
+    ORDER BY policyname
+  LOOP
+    IF storage_policy.policyname = ANY (owned_storage_policies) THEN
+      CONTINUE;
+    END IF;
 
-  IF broad_storage_policies IS NOT NULL THEN
+    IF storage_policy.cmd IN ('ALL', 'SELECT', 'DELETE', 'UPDATE') THEN
+      read_expression := lower(coalesce(storage_policy.qual, ''));
+      read_has_mandatory_bucket_prefix :=
+        read_expression ~ '^[[:space:](]*bucket_id[[:space:]]*=[[:space:]]*''[^'']+''(::[a-z0-9_.]+)?[[:space:])]*and([[:space:](]|$)'
+        OR read_expression ~ '^[[:space:](]*''[^'']+''(::[a-z0-9_.]+)?[[:space:]]*=[[:space:]]*bucket_id[[:space:])]*and([[:space:](]|$)'
+        OR read_expression ~ '^[[:space:](]*bucket_id[[:space:]]+in[[:space:]]*\([^)]*\)[[:space:])]*and([[:space:](]|$)'
+        OR read_expression ~ '^[[:space:](]*bucket_id[[:space:]]*=[[:space:]]*any[[:space:]]*\([^)]*\)[[:space:])]*and([[:space:](]|$)';
+
+      IF read_expression = ''
+        OR position('bucket_id' IN read_expression) = 0
+        OR read_expression ~ 'bucket_id[[:space:]]+is[[:space:]]+not[[:space:]]+null'
+        OR read_expression ~ 'bucket_id[[:space:]]*=[[:space:]]*bucket_id'
+        OR read_expression ~ '^[[:space:]()]*true[[:space:]()]*$'
+        OR read_expression ~ '(^|[[:space:](])or[[:space:](]+true([[:space:])]|$)'
+        OR (
+          read_expression ~ '(^|[[:space:](])or([[:space:])]|$)'
+          AND NOT read_has_mandatory_bucket_prefix
+        )
+        OR read_expression ~ 'bucket_id[[:space:]]*=[[:space:]]*''materials'''
+        OR read_expression ~ '''materials''([^a-z0-9_]|$).*=[[:space:]]*bucket_id'
+        OR read_expression ~ 'bucket_id[[:space:]]+in[[:space:]]*\([^)]*''materials'''
+        OR (
+          read_expression ~ 'bucket_id[[:space:]]*=[[:space:]]*any[[:space:]]*\('
+          AND position('''materials''' IN read_expression) > 0
+        )
+        OR NOT (
+          read_expression ~ 'bucket_id[[:space:]]*=[[:space:]]*''[^'']+'''
+          OR read_expression ~ '''[^'']+''([^a-z0-9_]|$).*=[[:space:]]*bucket_id'
+          OR read_expression ~ 'bucket_id[[:space:]]+in[[:space:]]*\('
+          OR read_expression ~ 'bucket_id[[:space:]]*=[[:space:]]*any[[:space:]]*\('
+          OR read_expression ~ 'bucket_id[[:space:]]*(<>|!=)[[:space:]]*''materials'''
+        ) THEN
+        conflicting_storage_policies := array_append(
+          conflicting_storage_policies,
+          format('%s [%s USING]', storage_policy.policyname, storage_policy.cmd)
+        );
+      END IF;
+    END IF;
+
+    IF storage_policy.cmd IN ('ALL', 'INSERT', 'UPDATE') THEN
+      -- PostgreSQL uses USING as the default WITH CHECK for ALL/UPDATE policies.
+      write_expression := lower(coalesce(
+        storage_policy.with_check,
+        storage_policy.qual,
+        ''
+      ));
+      write_has_mandatory_bucket_prefix :=
+        write_expression ~ '^[[:space:](]*bucket_id[[:space:]]*=[[:space:]]*''[^'']+''(::[a-z0-9_.]+)?[[:space:])]*and([[:space:](]|$)'
+        OR write_expression ~ '^[[:space:](]*''[^'']+''(::[a-z0-9_.]+)?[[:space:]]*=[[:space:]]*bucket_id[[:space:])]*and([[:space:](]|$)'
+        OR write_expression ~ '^[[:space:](]*bucket_id[[:space:]]+in[[:space:]]*\([^)]*\)[[:space:])]*and([[:space:](]|$)'
+        OR write_expression ~ '^[[:space:](]*bucket_id[[:space:]]*=[[:space:]]*any[[:space:]]*\([^)]*\)[[:space:])]*and([[:space:](]|$)';
+
+      IF write_expression = ''
+        OR position('bucket_id' IN write_expression) = 0
+        OR write_expression ~ 'bucket_id[[:space:]]+is[[:space:]]+not[[:space:]]+null'
+        OR write_expression ~ 'bucket_id[[:space:]]*=[[:space:]]*bucket_id'
+        OR write_expression ~ '^[[:space:]()]*true[[:space:]()]*$'
+        OR write_expression ~ '(^|[[:space:](])or[[:space:](]+true([[:space:])]|$)'
+        OR (
+          write_expression ~ '(^|[[:space:](])or([[:space:])]|$)'
+          AND NOT write_has_mandatory_bucket_prefix
+        )
+        OR write_expression ~ 'bucket_id[[:space:]]*=[[:space:]]*''materials'''
+        OR write_expression ~ '''materials''([^a-z0-9_]|$).*=[[:space:]]*bucket_id'
+        OR write_expression ~ 'bucket_id[[:space:]]+in[[:space:]]*\([^)]*''materials'''
+        OR (
+          write_expression ~ 'bucket_id[[:space:]]*=[[:space:]]*any[[:space:]]*\('
+          AND position('''materials''' IN write_expression) > 0
+        )
+        OR NOT (
+          write_expression ~ 'bucket_id[[:space:]]*=[[:space:]]*''[^'']+'''
+          OR write_expression ~ '''[^'']+''([^a-z0-9_]|$).*=[[:space:]]*bucket_id'
+          OR write_expression ~ 'bucket_id[[:space:]]+in[[:space:]]*\('
+          OR write_expression ~ 'bucket_id[[:space:]]*=[[:space:]]*any[[:space:]]*\('
+          OR write_expression ~ 'bucket_id[[:space:]]*(<>|!=)[[:space:]]*''materials'''
+        ) THEN
+        conflicting_storage_policies := array_append(
+          conflicting_storage_policies,
+          format('%s [%s WITH CHECK]', storage_policy.policyname, storage_policy.cmd)
+        );
+      END IF;
+    END IF;
+  END LOOP;
+
+  IF cardinality(conflicting_storage_policies) > 0 THEN
     RAISE EXCEPTION
-      'review broad authenticated storage.objects policies before migration 006: %',
-      broad_storage_policies;
+      'review conflicting or broad storage.objects policies before migration 006: %',
+      conflicting_storage_policies;
   END IF;
 END;
 $$;
@@ -797,6 +886,10 @@ $$;
 
 REVOKE ALL ON FUNCTION public.material_current_user_is_verified() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.material_current_user_is_platform_admin() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.material_current_user_is_verified() FROM anon;
+REVOKE ALL ON FUNCTION public.material_current_user_is_platform_admin() FROM anon;
+REVOKE ALL ON FUNCTION public.material_current_user_is_verified() FROM authenticated;
+REVOKE ALL ON FUNCTION public.material_current_user_is_platform_admin() FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.material_current_user_is_verified() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.material_current_user_is_platform_admin() TO authenticated;
 
@@ -843,23 +936,17 @@ BEGIN
 END;
 $$;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_trigger
-    WHERE tgrelid = 'public.materials'::regclass
-      AND tgname = 'enforce_material_update_trigger'
-      AND NOT tgisinternal
-  ) THEN
-    CREATE TRIGGER enforce_material_update_trigger
-      BEFORE UPDATE ON public.materials
-      FOR EACH ROW
-      EXECUTE FUNCTION public.enforce_material_update();
-  END IF;
-END;
-$$;
+DROP TRIGGER IF EXISTS enforce_material_update_trigger
+  ON public.materials;
+
+CREATE TRIGGER enforce_material_update_trigger
+  BEFORE UPDATE ON public.materials
+  FOR EACH ROW
+  EXECUTE FUNCTION public.enforce_material_update();
 
 REVOKE ALL ON FUNCTION public.enforce_material_update() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.enforce_material_update() FROM anon;
+REVOKE ALL ON FUNCTION public.enforce_material_update() FROM authenticated;
 
 ALTER TABLE public.materials ENABLE ROW LEVEL SECURITY;
 
@@ -882,109 +969,72 @@ BEGIN
 END;
 $$;
 
+-- Migration-owned policies are replaced deterministically so a stale or
+-- compromised same-named definition cannot survive a rerun.
+DROP POLICY IF EXISTS "materials_authenticated_read" ON public.materials;
+DROP POLICY IF EXISTS "materials_verified_insert" ON public.materials;
+DROP POLICY IF EXISTS "materials_uploader_update_pending" ON public.materials;
+DROP POLICY IF EXISTS "materials_uploader_delete_pending" ON public.materials;
+DROP POLICY IF EXISTS "materials_admin_update" ON public.materials;
+DROP POLICY IF EXISTS "materials_admin_delete" ON public.materials;
+
 -- Approved rows are browsable by authenticated users. Uploaders can see all of
 -- their own moderation states, and platform admins can review every row.
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'materials'
-      AND policyname = 'materials_authenticated_read'
-  ) THEN
-    CREATE POLICY "materials_authenticated_read"
-      ON public.materials
-      FOR SELECT
-      TO authenticated
-      USING (
-        status = 'approved'::public.material_moderation_status
-        OR uploader_id = auth.uid()
-        OR public.material_current_user_is_platform_admin()
-      );
-  END IF;
+CREATE POLICY "materials_authenticated_read"
+  ON public.materials
+  FOR SELECT
+  TO authenticated
+  USING (
+    status = 'approved'::public.material_moderation_status
+    OR uploader_id = auth.uid()
+    OR public.material_current_user_is_platform_admin()
+  );
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'materials'
-      AND policyname = 'materials_verified_insert'
-  ) THEN
-    CREATE POLICY "materials_verified_insert"
-      ON public.materials
-      FOR INSERT
-      TO authenticated
-      WITH CHECK (
-        uploader_id = auth.uid()
-        AND status = 'pending'::public.material_moderation_status
-        AND public.material_current_user_is_verified()
-      );
-  END IF;
+CREATE POLICY "materials_verified_insert"
+  ON public.materials
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    uploader_id = auth.uid()
+    AND status = 'pending'::public.material_moderation_status
+    AND public.material_current_user_is_verified()
+  );
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'materials'
-      AND policyname = 'materials_uploader_update_pending'
-  ) THEN
-    CREATE POLICY "materials_uploader_update_pending"
-      ON public.materials
-      FOR UPDATE
-      TO authenticated
-      USING (
-        uploader_id = auth.uid()
-        AND status = 'pending'::public.material_moderation_status
-      )
-      WITH CHECK (
-        uploader_id = auth.uid()
-        AND status = 'pending'::public.material_moderation_status
-        AND public.material_current_user_is_verified()
-      );
-  END IF;
+CREATE POLICY "materials_uploader_update_pending"
+  ON public.materials
+  FOR UPDATE
+  TO authenticated
+  USING (
+    uploader_id = auth.uid()
+    AND status = 'pending'::public.material_moderation_status
+  )
+  WITH CHECK (
+    uploader_id = auth.uid()
+    AND status = 'pending'::public.material_moderation_status
+    AND public.material_current_user_is_verified()
+  );
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'materials'
-      AND policyname = 'materials_uploader_delete_pending'
-  ) THEN
-    CREATE POLICY "materials_uploader_delete_pending"
-      ON public.materials
-      FOR DELETE
-      TO authenticated
-      USING (
-        uploader_id = auth.uid()
-        AND status = 'pending'::public.material_moderation_status
-      );
-  END IF;
+CREATE POLICY "materials_uploader_delete_pending"
+  ON public.materials
+  FOR DELETE
+  TO authenticated
+  USING (
+    uploader_id = auth.uid()
+    AND status = 'pending'::public.material_moderation_status
+  );
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'materials'
-      AND policyname = 'materials_admin_update'
-  ) THEN
-    CREATE POLICY "materials_admin_update"
-      ON public.materials
-      FOR UPDATE
-      TO authenticated
-      USING (public.material_current_user_is_platform_admin())
-      WITH CHECK (public.material_current_user_is_platform_admin());
-  END IF;
+CREATE POLICY "materials_admin_update"
+  ON public.materials
+  FOR UPDATE
+  TO authenticated
+  USING (public.material_current_user_is_platform_admin())
+  WITH CHECK (public.material_current_user_is_platform_admin());
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'materials'
-      AND policyname = 'materials_admin_delete'
-  ) THEN
-    CREATE POLICY "materials_admin_delete"
-      ON public.materials
-      FOR DELETE
-      TO authenticated
-      USING (public.material_current_user_is_platform_admin());
-  END IF;
-END;
-$$;
+CREATE POLICY "materials_admin_delete"
+  ON public.materials
+  FOR DELETE
+  TO authenticated
+  USING (public.material_current_user_is_platform_admin());
 
 -- Create an exact private bucket. If a bucket with this ID already exists but
 -- has different security limits, stop instead of silently changing it.
@@ -1040,101 +1090,86 @@ $$;
 
 -- Upload requires a verified student, a path under auth.uid(), and an existing
 -- pending materials row whose file_path exactly matches the object name.
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'storage'
-      AND tablename = 'objects'
-      AND policyname = 'materials_storage_insert'
-  ) THEN
-    CREATE POLICY "materials_storage_insert"
-      ON storage.objects
-      FOR INSERT
-      TO authenticated
-      WITH CHECK (
-        bucket_id = 'materials'
-        AND auth.uid() IS NOT NULL
-        AND cardinality(storage.foldername(name)) = 2
-        AND (storage.foldername(name))[1] = auth.uid()::text
-        AND public.material_current_user_is_verified()
-        AND EXISTS (
-          SELECT 1
-          FROM public.materials AS m
-          WHERE m.file_path = storage.objects.name
-            AND m.uploader_id = auth.uid()
-            AND m.status = 'pending'::public.material_moderation_status
-        )
-      );
-  END IF;
+-- The installed client sends an HTTP Content-Type, but does not establish a
+-- stable contract for a metadata JSON MIME key during INSERT policy evaluation.
+-- Do not add a fragile metadata lookup here. The bucket whitelist, database
+-- extension/MIME constraint, client validation, and moderation remain required.
 
-  -- Signed URL creation requires SELECT. Approved objects are available to
-  -- authenticated users; uploaders and admins may preview non-approved files.
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'storage'
-      AND tablename = 'objects'
-      AND policyname = 'materials_storage_read'
-  ) THEN
-    CREATE POLICY "materials_storage_read"
-      ON storage.objects
-      FOR SELECT
-      TO authenticated
-      USING (
-        bucket_id = 'materials'
+-- Replace only the three migration-owned Storage policies. No unrelated
+-- storage.objects policy is removed or changed.
+DROP POLICY IF EXISTS "materials_storage_insert" ON storage.objects;
+DROP POLICY IF EXISTS "materials_storage_read" ON storage.objects;
+DROP POLICY IF EXISTS "materials_storage_delete" ON storage.objects;
+
+CREATE POLICY "materials_storage_insert"
+  ON storage.objects
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    bucket_id = 'materials'
+    AND auth.uid() IS NOT NULL
+    AND cardinality(storage.foldername(name)) = 2
+    AND (storage.foldername(name))[1] = auth.uid()::text
+    AND public.material_current_user_is_verified()
+    AND EXISTS (
+      SELECT 1
+      FROM public.materials AS m
+      WHERE m.file_path = storage.objects.name
+        AND m.uploader_id = auth.uid()
+        AND m.status = 'pending'::public.material_moderation_status
+    )
+  );
+
+-- Every signed-URL read, including an admin read, requires a matching material
+-- row. Approved objects are available to authenticated users; uploaders and
+-- platform admins may preview non-approved files.
+CREATE POLICY "materials_storage_read"
+  ON storage.objects
+  FOR SELECT
+  TO authenticated
+  USING (
+    bucket_id = 'materials'
+    AND EXISTS (
+      SELECT 1
+      FROM public.materials AS m
+      WHERE m.file_path = storage.objects.name
         AND (
-          public.material_current_user_is_platform_admin()
-          OR EXISTS (
+          m.status = 'approved'::public.material_moderation_status
+          OR m.uploader_id = auth.uid()
+          OR public.material_current_user_is_platform_admin()
+        )
+    )
+  );
+
+-- Uploaders may remove their own pending object or an orphan in their own
+-- folder. Admin DELETE remains bucket-wide for intentional orphan cleanup.
+CREATE POLICY "materials_storage_delete"
+  ON storage.objects
+  FOR DELETE
+  TO authenticated
+  USING (
+    bucket_id = 'materials'
+    AND (
+      public.material_current_user_is_platform_admin()
+      OR (
+        (storage.foldername(name))[1] = auth.uid()::text
+        AND (
+          EXISTS (
             SELECT 1
             FROM public.materials AS m
             WHERE m.file_path = storage.objects.name
-              AND (
-                m.status = 'approved'::public.material_moderation_status
-                OR m.uploader_id = auth.uid()
-              )
+              AND m.uploader_id = auth.uid()
+              AND m.status = 'pending'::public.material_moderation_status
+          )
+          OR NOT EXISTS (
+            SELECT 1
+            FROM public.materials AS m
+            WHERE m.file_path = storage.objects.name
           )
         )
-      );
-  END IF;
-
-  -- Uploaders may remove their own pending object or an orphan in their own
-  -- folder. Admins can remove any object in the bucket.
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'storage'
-      AND tablename = 'objects'
-      AND policyname = 'materials_storage_delete'
-  ) THEN
-    CREATE POLICY "materials_storage_delete"
-      ON storage.objects
-      FOR DELETE
-      TO authenticated
-      USING (
-        bucket_id = 'materials'
-        AND (
-          public.material_current_user_is_platform_admin()
-          OR (
-            (storage.foldername(name))[1] = auth.uid()::text
-            AND (
-              EXISTS (
-                SELECT 1
-                FROM public.materials AS m
-                WHERE m.file_path = storage.objects.name
-                  AND m.uploader_id = auth.uid()
-                  AND m.status = 'pending'::public.material_moderation_status
-              )
-              OR NOT EXISTS (
-                SELECT 1
-                FROM public.materials AS m
-                WHERE m.file_path = storage.objects.name
-              )
-            )
-          )
-        )
-      );
-  END IF;
-END;
-$$;
+      )
+    )
+  );
 
 -- No UPDATE policy is created for storage.objects. Clients must not overwrite
 -- a file after upload; a replacement is a new pending material with a new path.

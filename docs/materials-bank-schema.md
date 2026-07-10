@@ -33,8 +33,10 @@ not prove absence. Migration 006 handles both cases safely: it creates the bucke
 when absent and validates, without changing, an existing bucket. The anonymous
 client receives PostgreSQL permission denied for `materials`, but cannot inspect
 the live authenticated policy catalog. Migration 006 therefore stops if unknown
-`public.materials` policies or obviously broad, unscoped Storage policies exist.
-It never drops those policies.
+`public.materials` policies or conflicting/broad Storage policies exist. It
+never drops unrelated policies. Its own six table policies and three Storage
+policies are dropped and recreated inside the transaction so stale same-named
+definitions cannot survive a rerun.
 
 ## Schema Decision
 
@@ -164,11 +166,41 @@ from silently replacing attribution or file metadata.
 | Policy | Operation | Rule |
 | --- | --- | --- |
 | `materials_storage_insert` | INSERT | Verified user, exact own-folder path, and matching own pending `materials` row required. |
-| `materials_storage_read` | SELECT | Approved object, uploader-owned object, or platform-admin access. This enables authorized signed URL creation. |
+| `materials_storage_read` | SELECT | A matching `materials` row is always required. The row must be approved, uploader-owned, or viewed by a platform admin. Orphans cannot receive signed read URLs, including for admins. |
 | `materials_storage_delete` | DELETE | Uploader may delete a matching own pending object or an orphan under their own UUID folder; platform admin may delete any object in the bucket. Approved and rejected objects remain protected while their row exists. |
 
 No Storage UPDATE policy exists. Files cannot be overwritten after upload. A
 replacement must use a new pending material row and a new upload UUID.
+
+Admin SELECT and DELETE intentionally differ: admin SELECT is row-backed, while
+admin DELETE remains bucket-wide so an orphan can be removed without recreating
+a database row solely for cleanup.
+
+### Existing Storage Policy Preflight
+
+Migration 006 enumerates every `storage.objects` policy assigned to `PUBLIC`,
+`anon`, or `authenticated`, including its own policy names. Migration-owned
+names are replaced deterministically. Any other policy aborts the transaction
+when its effective `USING` or `WITH CHECK` expression:
+
+- explicitly grants the `materials` bucket;
+- has no recognizable `bucket_id` restriction;
+- uses bare `TRUE`, `OR TRUE`, `bucket_id IS NOT NULL`, or
+  `bucket_id = bucket_id`; or
+- uses `OR` without beginning with a mandatory literal non-material bucket
+  restriction joined by `AND`; or
+- cannot be recognized as a literal equality, `IN`, `ANY`, or explicit
+  exclusion of the `materials` bucket.
+
+Clearly literal policies for another bucket remain untouched. This is a
+defensive text audit, not a SQL theorem prover. The complete `pg_policies`
+output still requires manual review before execution, especially when an
+external policy uses helper functions or complex boolean expressions.
+
+Migration-owned policies and the update trigger are replaced deterministically.
+Functions use `CREATE OR REPLACE` and have their client execution grants reset.
+Constraints and indexes remain name-idempotent rather than
+definition-idempotent; unexpected schema drift must be reviewed manually.
 
 ## Helper Functions and Trigger
 
@@ -179,7 +211,8 @@ Two profile helpers avoid profile-RLS interference:
 
 Both are `SECURITY DEFINER`, use the fixed search path
 `pg_catalog, public`, schema-qualify profile access, revoke execution from
-`PUBLIC`, and grant execution only to `authenticated`.
+`PUBLIC` and `anon`, reset authenticated grants, and grant execution only to
+`authenticated`.
 
 `enforce_material_update()` is a regular trigger function with the same fixed
 search path. `enforce_material_update_trigger` runs before every material update
@@ -244,6 +277,10 @@ The frontend must not:
 - PostgreSQL and bucket MIME constraints cannot inspect file magic bytes or scan
   for malware. Admin review is still required before approval. Production-scale
   hardening should add server-side content sniffing and malware scanning.
+- The installed Storage client guarantees an upload HTTP Content-Type but does
+  not establish a stable `storage.objects.metadata` JSON key during INSERT RLS
+  evaluation. Migration 006 therefore does not compare object metadata to
+  `materials.mime_type`; client validation and moderation remain mandatory.
 - `file_size` is client metadata. The bucket enforces the real object size limit,
   but the database cannot prove the metadata equals the stored byte count.
 - Database and Storage mutations are separate API operations and are not
@@ -254,8 +291,9 @@ The frontend must not:
 - The minimal moderation enum has no rejection reason, moderator identity, or
   audit history. Those should be added only with a real moderation product flow.
 - Migration 006 intentionally aborts when legacy rows, unknown Materials RLS
-  policies, incompatible foreign keys, a mismatched bucket, or obviously broad
-  Storage policies require manual review. It never deletes data or policies.
+  policies, incompatible foreign keys, a mismatched bucket, or conflicting/broad
+  Storage policies require manual review. It never deletes data or unrelated
+  policies; only migration-owned policies and its trigger are replaced.
 
 No seed materials, fake counts, frontend routes, likes, comments, ratings,
 folders, version history, OCR, AI summaries, plagiarism checks, or paid-content
