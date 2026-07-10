@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Sun, Moon } from 'lucide-react';
+import { MessageCircle, Sun, Moon } from 'lucide-react';
 import { useLang } from '@/lib/LanguageProvider';
 import { supabase } from '@/lib/supabase';
 import Logo from './Logo';
@@ -36,6 +36,7 @@ export default function AppShell({ children, profile }) {
   const navItems = [
     { href: '/feed', label: t('header.feed') },
     { href: '/professors', label: t('header.professors') },
+    { href: '/messages', label: t('header.messages'), icon: MessageCircle },
     { href: '/profile', label: t('header.profile') },
   ];
 
@@ -50,15 +51,22 @@ export default function AppShell({ children, profile }) {
           <Logo size={32} wordSize={20} />
         </Link>
         <nav className="app-nav">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`nav-link ${pathname === item.href ? 'active' : ''}`}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            const NavIcon = item.icon;
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`nav-link ${pathname === item.href ? 'active' : ''}`}
+              >
+                {NavIcon && (
+                  <NavIcon size={18} strokeWidth={1.75} aria-hidden="true" />
+                )}
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
         <div className="app-header-right">
           <div className="lang">

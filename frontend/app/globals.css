@@ -1406,6 +1406,9 @@ body.dark .how {
 
 .nav-link {
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   padding: 10px 13px;
   color: var(--ink-2);
   border-radius: var(--r-sm);
