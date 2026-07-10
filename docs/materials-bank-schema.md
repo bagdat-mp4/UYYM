@@ -32,11 +32,13 @@ private bucket metadata can be hidden from anonymous callers, that response does
 not prove absence. Migration 006 handles both cases safely: it creates the bucket
 when absent and validates, without changing, an existing bucket. The anonymous
 client receives PostgreSQL permission denied for `materials`, but cannot inspect
-the live authenticated policy catalog. Migration 006 therefore stops if unknown
-`public.materials` policies or conflicting/broad Storage policies exist. It
-never drops unrelated policies. Its own six table policies and three Storage
-policies are dropped and recreated inside the transaction so stale same-named
-definitions cannot survive a rerun.
+the live authenticated policy catalog. Deployment therefore requires an exact
+catalog snapshot from
+`backend/migrations/audits/006_storage_policy_catalog.sql`. Migration 006 now
+contains the manually reviewed live snapshot documented below and aborts before
+any change if the target catalog differs. It never drops unrelated policies. Its
+own six table policies and three Storage policies are dropped and recreated
+inside the transaction so stale same-named definitions cannot survive a rerun.
 
 ## Schema Decision
 
@@ -178,24 +180,95 @@ a database row solely for cleanup.
 
 ### Existing Storage Policy Preflight
 
-Migration 006 enumerates every `storage.objects` policy assigned to `PUBLIC`,
-`anon`, or `authenticated`, including its own policy names. Migration-owned
-names are replaced deterministically. Any other policy aborts the transaction
-when its effective `USING` or `WITH CHECK` expression:
+Migration 006 does not infer the semantics of arbitrary external policies.
+Regexes, prefix checks, substring matching, and boolean-layout assumptions are
+not used. Before deployment, run the read-only catalog helper against the exact
+target project and manually review its human-readable policy and role output.
+The helper returns two machine-ready JSON values:
 
-- explicitly grants the `materials` bucket;
-- has no recognizable `bucket_id` restriction;
-- uses bare `TRUE`, `OR TRUE`, `bucket_id IS NOT NULL`, or
-  `bucket_id = bucket_id`; or
-- uses `OR` without beginning with a mandatory literal non-material bucket
-  restriction joined by `AND`; or
-- cannot be recognized as a literal equality, `IN`, `ANY`, or explicit
-  exclusion of the `materials` bucket.
+- Every non-owned `storage.objects` policy, with exact policy name, command,
+  permissive/restrictive mode, sorted assigned roles, canonical `USING` from
+  `pg_get_expr`, and canonical `WITH CHECK` from `pg_get_expr`.
+- The complete PostgreSQL membership graph reachable from `authenticated`, its
+  effective inherited-role closure, role security flags, and membership options
+  from `pg_roles` and `pg_auth_members`. `PUBLIC` access is recorded as implicit.
 
-Clearly literal policies for another bucket remain untouched. This is a
-defensive text audit, not a SQL theorem prover. The complete `pg_policies`
-output still requires manual review before execution, especially when an
-external policy uses helper functions or complex boolean expressions.
+Copy those reviewed values into the clearly marked exact allowlist section of
+migration 006. PostgreSQL's canonical expressions are compared unchanged so
+meaningful whitespace inside string literals is not normalized away. Any added,
+removed, renamed, or changed external policy, assigned role, policy mode,
+command, expression, role flag, or inheritance edge aborts the migration before
+schema or Storage changes. This fails closed for policies assigned to `PUBLIC`,
+`anon`, `authenticated`, custom roles, and roles inherited by `authenticated`.
+
+The three migration-owned Storage policies are excluded from the external
+allowlist because they are replaced deterministically:
+
+- `materials_storage_insert`
+- `materials_storage_read`
+- `materials_storage_delete`
+
+Changing the exact allowlist always requires a new live catalog capture and
+manual security review. An empty external policy array is valid only when the
+live helper actually returns an empty array and a reviewer confirms it; the
+migration must never be configured with a guessed placeholder.
+
+#### Approved Live Snapshot
+
+Migration 006 contains this exact manually reviewed snapshot:
+
+```json
+{
+  "expected_external_storage_policies": [
+    {
+      "mode": "PERMISSIVE",
+      "roles": [
+        "authenticated"
+      ],
+      "command": "SELECT",
+      "policy_name": "verif_read_own_or_admin",
+      "using_expression": "((bucket_id = 'verifications'::text) AND (((storage.foldername(name))[1] = (auth.uid())::text) OR is_admin()))",
+      "with_check_expression": null
+    },
+    {
+      "mode": "PERMISSIVE",
+      "roles": [
+        "authenticated"
+      ],
+      "command": "INSERT",
+      "policy_name": "verif_upload_own",
+      "using_expression": null,
+      "with_check_expression": "((bucket_id = 'verifications'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text))"
+    }
+  ],
+  "expected_authenticated_role_snapshot": {
+    "edges": [],
+    "roles": [
+      {
+        "rolsuper": false,
+        "role_name": "authenticated",
+        "rolinherit": true,
+        "rolcanlogin": false,
+        "rolcreatedb": false,
+        "rolbypassrls": false,
+        "rolcreaterole": false,
+        "rolreplication": false,
+        "inherited_by_authenticated": true
+      }
+    ],
+    "implicit_public": true,
+    "authenticated_role_exists": true
+  }
+}
+```
+
+The audit helper produces these values with the same fixed search path,
+`pg_policy` command and mode mapping, sorted policy and role arrays, unchanged
+`pg_get_expr` output, and `pg_roles`/`pg_auth_members` role graph projection used
+by the migration comparison. Whenever a live Storage policy, assigned policy
+role, PostgreSQL role flag, or role membership changes, regenerate the snapshot,
+review every change manually, and update both the migration and this document.
+Until that review is complete, catalog drift makes migration 006 fail closed.
 
 Migration-owned policies and the update trigger are replaced deterministically.
 Functions use `CREATE OR REPLACE` and have their client execution grants reset.
@@ -290,10 +363,11 @@ The frontend must not:
   material is rejected immediately afterward.
 - The minimal moderation enum has no rejection reason, moderator identity, or
   audit history. Those should be added only with a real moderation product flow.
-- Migration 006 intentionally aborts when legacy rows, unknown Materials RLS
-  policies, incompatible foreign keys, a mismatched bucket, or conflicting/broad
-  Storage policies require manual review. It never deletes data or unrelated
-  policies; only migration-owned policies and its trigger are replaced.
+- Migration 006 intentionally aborts when its exact reviewed live Storage policy
+  or role snapshot drifts, or when legacy rows, unknown Materials RLS policies,
+  incompatible foreign keys, or a mismatched bucket require manual review. It
+  never deletes data or unrelated policies; only migration-owned policies and
+  its trigger are replaced.
 
 No seed materials, fake counts, frontend routes, likes, comments, ratings,
 folders, version history, OCR, AI summaries, plagiarism checks, or paid-content

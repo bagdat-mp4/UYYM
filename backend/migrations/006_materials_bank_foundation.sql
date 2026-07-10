@@ -6,21 +6,71 @@
 
 BEGIN;
 
+-- Keep pg_get_expr output stable across SQL Editor sessions.
+SET LOCAL search_path = pg_catalog, public;
+
 -- Preflight the live base schema before making structural changes.
 DO $$
 DECLARE
   unexpected_policies text[];
-  conflicting_storage_policies text[] := ARRAY[]::text[];
   owned_storage_policies constant text[] := ARRAY[
-    'materials_storage_read',
     'materials_storage_insert',
+    'materials_storage_read',
     'materials_storage_delete'
   ]::text[];
-  storage_policy record;
-  read_expression text;
-  write_expression text;
-  read_has_mandatory_bucket_prefix boolean;
-  write_has_mandatory_bucket_prefix boolean;
+
+  -- EXACT REVIEWED LIVE STORAGE CATALOG ALLOWLIST
+  -- Regenerate and manually review these values with
+  -- audits/006_storage_policy_catalog.sql whenever Storage policies or role
+  -- membership change. Do not infer or broaden external policy semantics.
+  expected_external_storage_policies constant jsonb := $policy_allowlist$
+  [
+    {
+      "mode": "PERMISSIVE",
+      "roles": [
+        "authenticated"
+      ],
+      "command": "SELECT",
+      "policy_name": "verif_read_own_or_admin",
+      "using_expression": "((bucket_id = 'verifications'::text) AND (((storage.foldername(name))[1] = (auth.uid())::text) OR is_admin()))",
+      "with_check_expression": null
+    },
+    {
+      "mode": "PERMISSIVE",
+      "roles": [
+        "authenticated"
+      ],
+      "command": "INSERT",
+      "policy_name": "verif_upload_own",
+      "using_expression": null,
+      "with_check_expression": "((bucket_id = 'verifications'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text))"
+    }
+  ]
+  $policy_allowlist$::jsonb;
+
+  expected_authenticated_role_snapshot constant jsonb := $role_snapshot$
+  {
+    "edges": [],
+    "roles": [
+      {
+        "rolsuper": false,
+        "role_name": "authenticated",
+        "rolinherit": true,
+        "rolcanlogin": false,
+        "rolcreatedb": false,
+        "rolbypassrls": false,
+        "rolcreaterole": false,
+        "rolreplication": false,
+        "inherited_by_authenticated": true
+      }
+    ],
+    "implicit_public": true,
+    "authenticated_role_exists": true
+  }
+  $role_snapshot$::jsonb;
+
+  current_external_storage_policies jsonb;
+  current_authenticated_role_snapshot jsonb;
   upgrade_required boolean;
 BEGIN
   IF to_regclass('public.materials') IS NULL
@@ -256,115 +306,212 @@ BEGIN
       unexpected_policies;
   END IF;
 
-  -- Inspect every public/anon/authenticated storage.objects policy. The three
-  -- migration-owned names are enumerated too, but are safe to ignore here
-  -- because they are dropped and recreated exactly later in this transaction.
-  --
-  -- Arbitrary SQL policy semantics cannot be proven through catalog text. This
-  -- defensive check rejects explicit materials access, missing bucket scopes,
-  -- self-comparisons, IS NOT NULL scopes, bare TRUE grants, and expressions
-  -- that do not contain a recognizable literal bucket restriction. A manual
-  -- pg_policies review is still required before execution.
-  FOR storage_policy IN
-    SELECT policyname, roles, cmd, qual, with_check
-    FROM pg_policies
-    WHERE schemaname = 'storage'
-      AND tablename = 'objects'
-      AND roles && ARRAY['public', 'anon', 'authenticated']::name[]
-    ORDER BY policyname
-  LOOP
-    IF storage_policy.policyname = ANY (owned_storage_policies) THEN
-      CONTINUE;
-    END IF;
-
-    IF storage_policy.cmd IN ('ALL', 'SELECT', 'DELETE', 'UPDATE') THEN
-      read_expression := lower(coalesce(storage_policy.qual, ''));
-      read_has_mandatory_bucket_prefix :=
-        read_expression ~ '^[[:space:](]*bucket_id[[:space:]]*=[[:space:]]*''[^'']+''(::[a-z0-9_.]+)?[[:space:])]*and([[:space:](]|$)'
-        OR read_expression ~ '^[[:space:](]*''[^'']+''(::[a-z0-9_.]+)?[[:space:]]*=[[:space:]]*bucket_id[[:space:])]*and([[:space:](]|$)'
-        OR read_expression ~ '^[[:space:](]*bucket_id[[:space:]]+in[[:space:]]*\([^)]*\)[[:space:])]*and([[:space:](]|$)'
-        OR read_expression ~ '^[[:space:](]*bucket_id[[:space:]]*=[[:space:]]*any[[:space:]]*\([^)]*\)[[:space:])]*and([[:space:](]|$)';
-
-      IF read_expression = ''
-        OR position('bucket_id' IN read_expression) = 0
-        OR read_expression ~ 'bucket_id[[:space:]]+is[[:space:]]+not[[:space:]]+null'
-        OR read_expression ~ 'bucket_id[[:space:]]*=[[:space:]]*bucket_id'
-        OR read_expression ~ '^[[:space:]()]*true[[:space:]()]*$'
-        OR read_expression ~ '(^|[[:space:](])or[[:space:](]+true([[:space:])]|$)'
-        OR (
-          read_expression ~ '(^|[[:space:](])or([[:space:])]|$)'
-          AND NOT read_has_mandatory_bucket_prefix
-        )
-        OR read_expression ~ 'bucket_id[[:space:]]*=[[:space:]]*''materials'''
-        OR read_expression ~ '''materials''([^a-z0-9_]|$).*=[[:space:]]*bucket_id'
-        OR read_expression ~ 'bucket_id[[:space:]]+in[[:space:]]*\([^)]*''materials'''
-        OR (
-          read_expression ~ 'bucket_id[[:space:]]*=[[:space:]]*any[[:space:]]*\('
-          AND position('''materials''' IN read_expression) > 0
-        )
-        OR NOT (
-          read_expression ~ 'bucket_id[[:space:]]*=[[:space:]]*''[^'']+'''
-          OR read_expression ~ '''[^'']+''([^a-z0-9_]|$).*=[[:space:]]*bucket_id'
-          OR read_expression ~ 'bucket_id[[:space:]]+in[[:space:]]*\('
-          OR read_expression ~ 'bucket_id[[:space:]]*=[[:space:]]*any[[:space:]]*\('
-          OR read_expression ~ 'bucket_id[[:space:]]*(<>|!=)[[:space:]]*''materials'''
-        ) THEN
-        conflicting_storage_policies := array_append(
-          conflicting_storage_policies,
-          format('%s [%s USING]', storage_policy.policyname, storage_policy.cmd)
-        );
-      END IF;
-    END IF;
-
-    IF storage_policy.cmd IN ('ALL', 'INSERT', 'UPDATE') THEN
-      -- PostgreSQL uses USING as the default WITH CHECK for ALL/UPDATE policies.
-      write_expression := lower(coalesce(
-        storage_policy.with_check,
-        storage_policy.qual,
-        ''
-      ));
-      write_has_mandatory_bucket_prefix :=
-        write_expression ~ '^[[:space:](]*bucket_id[[:space:]]*=[[:space:]]*''[^'']+''(::[a-z0-9_.]+)?[[:space:])]*and([[:space:](]|$)'
-        OR write_expression ~ '^[[:space:](]*''[^'']+''(::[a-z0-9_.]+)?[[:space:]]*=[[:space:]]*bucket_id[[:space:])]*and([[:space:](]|$)'
-        OR write_expression ~ '^[[:space:](]*bucket_id[[:space:]]+in[[:space:]]*\([^)]*\)[[:space:])]*and([[:space:](]|$)'
-        OR write_expression ~ '^[[:space:](]*bucket_id[[:space:]]*=[[:space:]]*any[[:space:]]*\([^)]*\)[[:space:])]*and([[:space:](]|$)';
-
-      IF write_expression = ''
-        OR position('bucket_id' IN write_expression) = 0
-        OR write_expression ~ 'bucket_id[[:space:]]+is[[:space:]]+not[[:space:]]+null'
-        OR write_expression ~ 'bucket_id[[:space:]]*=[[:space:]]*bucket_id'
-        OR write_expression ~ '^[[:space:]()]*true[[:space:]()]*$'
-        OR write_expression ~ '(^|[[:space:](])or[[:space:](]+true([[:space:])]|$)'
-        OR (
-          write_expression ~ '(^|[[:space:](])or([[:space:])]|$)'
-          AND NOT write_has_mandatory_bucket_prefix
-        )
-        OR write_expression ~ 'bucket_id[[:space:]]*=[[:space:]]*''materials'''
-        OR write_expression ~ '''materials''([^a-z0-9_]|$).*=[[:space:]]*bucket_id'
-        OR write_expression ~ 'bucket_id[[:space:]]+in[[:space:]]*\([^)]*''materials'''
-        OR (
-          write_expression ~ 'bucket_id[[:space:]]*=[[:space:]]*any[[:space:]]*\('
-          AND position('''materials''' IN write_expression) > 0
-        )
-        OR NOT (
-          write_expression ~ 'bucket_id[[:space:]]*=[[:space:]]*''[^'']+'''
-          OR write_expression ~ '''[^'']+''([^a-z0-9_]|$).*=[[:space:]]*bucket_id'
-          OR write_expression ~ 'bucket_id[[:space:]]+in[[:space:]]*\('
-          OR write_expression ~ 'bucket_id[[:space:]]*=[[:space:]]*any[[:space:]]*\('
-          OR write_expression ~ 'bucket_id[[:space:]]*(<>|!=)[[:space:]]*''materials'''
-        ) THEN
-        conflicting_storage_policies := array_append(
-          conflicting_storage_policies,
-          format('%s [%s WITH CHECK]', storage_policy.policyname, storage_policy.cmd)
-        );
-      END IF;
-    END IF;
-  END LOOP;
-
-  IF cardinality(conflicting_storage_policies) > 0 THEN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_roles WHERE rolname = 'authenticated'
+  ) THEN
     RAISE EXCEPTION
-      'review conflicting or broad storage.objects policies before migration 006: %',
-      conflicting_storage_policies;
+      'migration 006 requires the authenticated PostgreSQL role';
+  END IF;
+
+  -- Compare every external policy, including policies assigned to PUBLIC,
+  -- anon, authenticated, custom roles, or inherited roles. pg_get_expr is used
+  -- unchanged so meaningful whitespace inside string literals is not hidden.
+  WITH policy_catalog AS (
+    SELECT
+      p.polname::text AS policy_name,
+      CASE p.polcmd
+        WHEN 'r' THEN 'SELECT'
+        WHEN 'a' THEN 'INSERT'
+        WHEN 'w' THEN 'UPDATE'
+        WHEN 'd' THEN 'DELETE'
+        WHEN '*' THEN 'ALL'
+        ELSE p.polcmd::text
+      END AS command,
+      CASE
+        WHEN p.polpermissive THEN 'PERMISSIVE'
+        ELSE 'RESTRICTIVE'
+      END AS mode,
+      ARRAY(
+        SELECT assigned_role.role_name
+        FROM (
+          SELECT CASE
+            WHEN assigned.role_oid = 0 THEN 'public'
+            ELSE coalesce(
+              r.rolname::text,
+              format('<missing-role:%s>', assigned.role_oid)
+            )
+          END AS role_name
+          FROM unnest(p.polroles) AS assigned(role_oid)
+          LEFT JOIN pg_roles AS r ON r.oid = assigned.role_oid
+        ) AS assigned_role
+        ORDER BY assigned_role.role_name
+      ) AS roles,
+      pg_get_expr(p.polqual, p.polrelid, false) AS using_expression,
+      pg_get_expr(
+        p.polwithcheck,
+        p.polrelid,
+        false
+      ) AS with_check_expression
+    FROM pg_policy AS p
+    WHERE p.polrelid = 'storage.objects'::regclass
+      AND p.polname <> ALL (owned_storage_policies)
+  )
+  SELECT coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'policy_name', policy_name,
+        'command', command,
+        'mode', mode,
+        'roles', to_jsonb(roles),
+        'using_expression', using_expression,
+        'with_check_expression', with_check_expression
+      )
+      ORDER BY policy_name
+    ),
+    '[]'::jsonb
+  )
+  INTO current_external_storage_policies
+  FROM policy_catalog;
+
+  IF current_external_storage_policies IS DISTINCT FROM
+    expected_external_storage_policies THEN
+    RAISE EXCEPTION
+      'storage.objects policy catalog differs from the reviewed migration 006 allowlist; aborting before changes';
+  END IF;
+
+  -- Snapshot both the complete membership graph reachable from authenticated
+  -- and the subset whose privileges are inherited automatically. Role flags and
+  -- per-membership options are compared exactly as catalog data.
+  WITH RECURSIVE membership_closure AS (
+    SELECT
+      r.oid,
+      r.rolname,
+      r.rolinherit,
+      r.rolsuper,
+      r.rolcreaterole,
+      r.rolcreatedb,
+      r.rolcanlogin,
+      r.rolreplication,
+      r.rolbypassrls
+    FROM pg_roles AS r
+    WHERE r.rolname = 'authenticated'
+
+    UNION
+
+    SELECT
+      parent.oid,
+      parent.rolname,
+      parent.rolinherit,
+      parent.rolsuper,
+      parent.rolcreaterole,
+      parent.rolcreatedb,
+      parent.rolcanlogin,
+      parent.rolreplication,
+      parent.rolbypassrls
+    FROM membership_closure AS member_role
+    JOIN pg_auth_members AS membership
+      ON membership.member = member_role.oid
+    JOIN pg_roles AS parent ON parent.oid = membership.roleid
+  ),
+  inherited_closure AS (
+    SELECT r.oid, r.rolname, r.rolinherit
+    FROM pg_roles AS r
+    WHERE r.rolname = 'authenticated'
+
+    UNION
+
+    SELECT parent.oid, parent.rolname, parent.rolinherit
+    FROM inherited_closure AS member_role
+    JOIN pg_auth_members AS membership
+      ON membership.member = member_role.oid
+    JOIN pg_roles AS parent ON parent.oid = membership.roleid
+    WHERE member_role.rolinherit
+      AND coalesce(
+        (to_jsonb(membership) ->> 'inherit_option')::boolean,
+        true
+      )
+  ),
+  role_rows AS (
+    SELECT
+      member_role.oid,
+      member_role.rolname::text AS role_name,
+      EXISTS (
+        SELECT 1
+        FROM inherited_closure AS inherited_role
+        WHERE inherited_role.oid = member_role.oid
+      ) AS inherited_by_authenticated,
+      member_role.rolinherit,
+      member_role.rolsuper,
+      member_role.rolcreaterole,
+      member_role.rolcreatedb,
+      member_role.rolcanlogin,
+      member_role.rolreplication,
+      member_role.rolbypassrls
+    FROM membership_closure AS member_role
+  ),
+  edge_rows AS (
+    SELECT
+      member_role.rolname::text AS member_role,
+      granted_role.rolname::text AS granted_role,
+      grantor.rolname::text AS grantor_role,
+      membership.admin_option,
+      to_jsonb(membership) ->> 'inherit_option' AS inherit_option,
+      to_jsonb(membership) ->> 'set_option' AS set_option
+    FROM pg_auth_members AS membership
+    JOIN membership_closure AS member_role
+      ON member_role.oid = membership.member
+    JOIN pg_roles AS granted_role ON granted_role.oid = membership.roleid
+    LEFT JOIN pg_roles AS grantor ON grantor.oid = membership.grantor
+  )
+  SELECT jsonb_build_object(
+    'authenticated_role_exists', EXISTS (
+      SELECT 1 FROM pg_roles WHERE rolname = 'authenticated'
+    ),
+    'implicit_public', true,
+    'roles', coalesce(
+      (
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'role_name', role_name,
+            'inherited_by_authenticated', inherited_by_authenticated,
+            'rolinherit', rolinherit,
+            'rolsuper', rolsuper,
+            'rolcreaterole', rolcreaterole,
+            'rolcreatedb', rolcreatedb,
+            'rolcanlogin', rolcanlogin,
+            'rolreplication', rolreplication,
+            'rolbypassrls', rolbypassrls
+          )
+          ORDER BY role_name
+        )
+        FROM role_rows
+      ),
+      '[]'::jsonb
+    ),
+    'edges', coalesce(
+      (
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'member_role', member_role,
+            'granted_role', granted_role,
+            'grantor_role', grantor_role,
+            'admin_option', admin_option,
+            'inherit_option', inherit_option,
+            'set_option', set_option
+          )
+          ORDER BY member_role, granted_role, grantor_role
+        )
+        FROM edge_rows
+      ),
+      '[]'::jsonb
+    )
+  )
+  INTO current_authenticated_role_snapshot;
+
+  IF current_authenticated_role_snapshot IS DISTINCT FROM
+    expected_authenticated_role_snapshot THEN
+    RAISE EXCEPTION
+      'authenticated PostgreSQL role inheritance differs from the reviewed migration 006 snapshot; aborting before changes';
   END IF;
 END;
 $$;
