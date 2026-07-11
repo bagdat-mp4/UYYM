@@ -13,6 +13,40 @@ SET LOCAL search_path = pg_catalog, public;
 DO $$
 DECLARE
   unexpected_policies text[];
+  expected_legacy_material_policies constant jsonb := $legacy_policy_allowlist$
+  [
+    {
+      "policy_name": "mat_delete",
+      "mode": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "command": "DELETE",
+      "using_expression": "(auth.uid() = uploader_id)",
+      "with_check_expression": null
+    },
+    {
+      "policy_name": "mat_insert",
+      "mode": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "command": "INSERT",
+      "using_expression": null,
+      "with_check_expression": "((auth.uid() = uploader_id) AND is_verified())"
+    },
+    {
+      "policy_name": "mat_read",
+      "mode": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "command": "SELECT",
+      "using_expression": "(auth.role() = 'authenticated'::text)",
+      "with_check_expression": null
+    }
+  ]
+  $legacy_policy_allowlist$::jsonb;
   owned_storage_policies constant text[] := ARRAY[
     'materials_storage_insert',
     'materials_storage_read',
@@ -69,6 +103,7 @@ DECLARE
   }
   $role_snapshot$::jsonb;
 
+  current_legacy_material_policies jsonb;
   current_external_storage_policies jsonb;
   current_authenticated_role_snapshot jsonb;
   upgrade_required boolean;
@@ -284,8 +319,77 @@ BEGIN
       'materials contains legacy rows; audit and migrate file_url values before running migration 006';
   END IF;
 
-  -- Permissive PostgreSQL policies combine with OR. Unknown legacy policies
-  -- must be reviewed rather than silently coexisting with the new model.
+  -- Validate the reviewed legacy policy set exactly before treating those names
+  -- as migration-owned. An empty set is accepted only after a successful run
+  -- has already replaced the legacy policies.
+  WITH legacy_policy_catalog AS (
+    SELECT
+      p.polname::text AS policy_name,
+      CASE
+        WHEN p.polpermissive THEN 'PERMISSIVE'
+        ELSE 'RESTRICTIVE'
+      END AS mode,
+      ARRAY(
+        SELECT assigned_role.role_name
+        FROM (
+          SELECT CASE
+            WHEN assigned.role_oid = 0 THEN 'public'
+            ELSE coalesce(
+              r.rolname::text,
+              format('<missing-role:%s>', assigned.role_oid)
+            )
+          END AS role_name
+          FROM unnest(p.polroles) AS assigned(role_oid)
+          LEFT JOIN pg_roles AS r ON r.oid = assigned.role_oid
+        ) AS assigned_role
+        ORDER BY assigned_role.role_name
+      ) AS roles,
+      CASE p.polcmd
+        WHEN 'r' THEN 'SELECT'
+        WHEN 'a' THEN 'INSERT'
+        WHEN 'w' THEN 'UPDATE'
+        WHEN 'd' THEN 'DELETE'
+        WHEN '*' THEN 'ALL'
+        ELSE p.polcmd::text
+      END AS command,
+      pg_get_expr(p.polqual, p.polrelid, false) AS using_expression,
+      pg_get_expr(
+        p.polwithcheck,
+        p.polrelid,
+        false
+      ) AS with_check_expression
+    FROM pg_policy AS p
+    WHERE p.polrelid = 'public.materials'::regclass
+      AND p.polname::text = ANY (
+        ARRAY['mat_delete', 'mat_insert', 'mat_read']::text[]
+      )
+  )
+  SELECT coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'policy_name', policy_name,
+        'mode', mode,
+        'roles', to_jsonb(roles),
+        'command', command,
+        'using_expression', using_expression,
+        'with_check_expression', with_check_expression
+      )
+      ORDER BY policy_name
+    ),
+    '[]'::jsonb
+  )
+  INTO current_legacy_material_policies
+  FROM legacy_policy_catalog;
+
+  IF current_legacy_material_policies <> '[]'::jsonb
+    AND current_legacy_material_policies IS DISTINCT FROM
+      expected_legacy_material_policies THEN
+    RAISE EXCEPTION
+      'legacy public.materials policies differ from the reviewed migration 006 allowlist; aborting before changes';
+  END IF;
+
+  -- Permissive PostgreSQL policies combine with OR. Unknown policies must be
+  -- reviewed rather than silently coexisting with the new model.
   SELECT array_agg(policyname ORDER BY policyname)
   INTO unexpected_policies
   FROM pg_policies
@@ -297,7 +401,10 @@ BEGIN
       'materials_uploader_update_pending',
       'materials_uploader_delete_pending',
       'materials_admin_update',
-      'materials_admin_delete'
+      'materials_admin_delete',
+      'mat_delete',
+      'mat_insert',
+      'mat_read'
     ]);
 
   IF unexpected_policies IS NOT NULL THEN
@@ -380,8 +487,11 @@ BEGIN
   END IF;
 
   -- Snapshot both the complete membership graph reachable from authenticated
-  -- and the subset whose privileges are inherited automatically. Role flags and
-  -- per-membership options are compared exactly as catalog data.
+  -- and the subset whose privileges are inherited automatically. PostgreSQL 16+
+  -- stores the effective inheritance decision on each membership edge; on older
+  -- versions, where inherit_option is absent, the member role's INHERIT flag is
+  -- the compatible fallback. Role flags and membership options are still
+  -- compared exactly as catalog data.
   WITH RECURSIVE membership_closure AS (
     SELECT
       r.oid,
@@ -425,11 +535,10 @@ BEGIN
     JOIN pg_auth_members AS membership
       ON membership.member = member_role.oid
     JOIN pg_roles AS parent ON parent.oid = membership.roleid
-    WHERE member_role.rolinherit
-      AND coalesce(
-        (to_jsonb(membership) ->> 'inherit_option')::boolean,
-        true
-      )
+    WHERE coalesce(
+      (to_jsonb(membership) ->> 'inherit_option')::boolean,
+      member_role.rolinherit
+    )
   ),
   role_rows AS (
     SELECT
@@ -1099,8 +1208,40 @@ ALTER TABLE public.materials ENABLE ROW LEVEL SECURITY;
 
 -- Authenticated clients receive table privileges, then RLS restricts every row.
 -- Anon receives no Materials Bank table access.
+REVOKE ALL ON TABLE public.materials FROM PUBLIC;
 REVOKE ALL ON TABLE public.materials FROM anon;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.materials TO authenticated;
+REVOKE INSERT ON TABLE public.materials FROM authenticated;
+REVOKE INSERT (
+  id,
+  uploader_id,
+  university_id,
+  professor_id,
+  title,
+  course_name,
+  file_path,
+  created_at,
+  description,
+  file_name,
+  mime_type,
+  file_size,
+  material_type,
+  status
+) ON public.materials FROM authenticated;
+GRANT SELECT, UPDATE, DELETE ON public.materials TO authenticated;
+GRANT INSERT (
+  uploader_id,
+  university_id,
+  professor_id,
+  title,
+  course_name,
+  file_path,
+  description,
+  file_name,
+  mime_type,
+  file_size,
+  material_type,
+  status
+) ON public.materials TO authenticated;
 
 DO $$
 DECLARE
@@ -1124,6 +1265,9 @@ DROP POLICY IF EXISTS "materials_uploader_update_pending" ON public.materials;
 DROP POLICY IF EXISTS "materials_uploader_delete_pending" ON public.materials;
 DROP POLICY IF EXISTS "materials_admin_update" ON public.materials;
 DROP POLICY IF EXISTS "materials_admin_delete" ON public.materials;
+DROP POLICY IF EXISTS "mat_delete" ON public.materials;
+DROP POLICY IF EXISTS "mat_insert" ON public.materials;
+DROP POLICY IF EXISTS "mat_read" ON public.materials;
 
 -- Approved rows are browsable by authenticated users. Uploaders can see all of
 -- their own moderation states, and platform admins can review every row.
@@ -1183,8 +1327,8 @@ CREATE POLICY "materials_admin_delete"
   TO authenticated
   USING (public.material_current_user_is_platform_admin());
 
--- Create an exact private bucket. If a bucket with this ID already exists but
--- has different security limits, stop instead of silently changing it.
+-- Create an exact private bucket, or harden the existing bucket in place
+-- without deleting it or any stored objects.
 DO $$
 DECLARE
   expected_mime_types text[] := ARRAY[
@@ -1207,16 +1351,18 @@ BEGIN
   WHERE id = 'materials';
 
   IF FOUND THEN
-    IF existing_bucket.name IS DISTINCT FROM 'materials'
-      OR existing_bucket.public IS DISTINCT FROM false
-      OR existing_bucket.file_size_limit IS DISTINCT FROM 26214400
-      OR existing_bucket.allowed_mime_types IS NULL
-      OR cardinality(existing_bucket.allowed_mime_types) <> cardinality(expected_mime_types)
-      OR NOT existing_bucket.allowed_mime_types @> expected_mime_types
-      OR NOT expected_mime_types @> existing_bucket.allowed_mime_types THEN
+    IF existing_bucket.name IS DISTINCT FROM 'materials' THEN
       RAISE EXCEPTION
-        'existing materials bucket does not match the required private 25 MB MIME-restricted configuration';
+        'existing materials bucket id has an unexpected name: %',
+        existing_bucket.name;
     END IF;
+
+    UPDATE storage.buckets
+    SET
+      public = false,
+      file_size_limit = 26214400,
+      allowed_mime_types = expected_mime_types
+    WHERE id = 'materials';
   ELSE
     INSERT INTO storage.buckets (
       id,
@@ -1231,6 +1377,25 @@ BEGIN
       26214400,
       expected_mime_types
     );
+  END IF;
+
+  -- Re-read the persisted row and fail transactionally if Storage did not
+  -- retain the exact required private bucket configuration.
+  SELECT * INTO existing_bucket
+  FROM storage.buckets
+  WHERE id = 'materials';
+
+  IF NOT FOUND
+    OR existing_bucket.name IS DISTINCT FROM 'materials'
+    OR existing_bucket.public IS DISTINCT FROM false
+    OR existing_bucket.file_size_limit IS DISTINCT FROM 26214400
+    OR existing_bucket.allowed_mime_types IS NULL
+    OR cardinality(existing_bucket.allowed_mime_types) <>
+      cardinality(expected_mime_types)
+    OR NOT existing_bucket.allowed_mime_types @> expected_mime_types
+    OR NOT expected_mime_types @> existing_bucket.allowed_mime_types THEN
+    RAISE EXCEPTION
+      'materials bucket could not be configured as the required private 25 MiB MIME-restricted bucket';
   END IF;
 END;
 $$;
@@ -1299,7 +1464,10 @@ CREATE POLICY "materials_storage_delete"
     AND (
       public.material_current_user_is_platform_admin()
       OR (
-        (storage.foldername(name))[1] = auth.uid()::text
+        cardinality(storage.foldername(name)) = 2
+        AND (storage.foldername(name))[1] = auth.uid()::text
+        AND (storage.foldername(name))[2] ~
+          '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
         AND (
           EXISTS (
             SELECT 1
