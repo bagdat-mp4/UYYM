@@ -7,6 +7,8 @@ import {
   GraduationCap,
   HardDrive,
   Loader2,
+  Pencil,
+  Trash2,
   UserRound,
 } from 'lucide-react';
 import {
@@ -25,7 +27,12 @@ export default function MaterialCard({
   showStatus = false,
   downloading = false,
   downloadError = false,
+  actionBusy = false,
+  canEdit = false,
+  canDelete = false,
   onDownload,
+  onEdit,
+  onDelete,
 }) {
   const university = normalizeRelation(material.university);
   const professor = normalizeRelation(material.professor);
@@ -128,20 +135,46 @@ export default function MaterialCard({
         <span className="material-file-size">
           {t('materials.fileSizeLabel')}: {formattedSize}
         </span>
-        <button
-          type="button"
-          className="btn btn-secondary material-download"
-          onClick={() => onDownload(material)}
-          disabled={downloading}
-          aria-label={t('materials.downloadNamed').replace('{title}', title)}
-        >
-          {downloading ? (
-            <Loader2 size={18} strokeWidth={1.75} className="spin" aria-hidden="true" />
-          ) : (
-            <Download size={18} strokeWidth={1.75} aria-hidden="true" />
+        <div className="material-card-actions">
+          {canEdit && (
+            <button
+              type="button"
+              className="btn btn-quiet material-card-action"
+              onClick={(event) => onEdit(material, event.currentTarget)}
+              disabled={actionBusy || downloading}
+              aria-label={t('materials.editNamed').replace('{title}', title)}
+            >
+              <Pencil size={17} strokeWidth={1.75} aria-hidden="true" />
+              {t('materials.editAction')}
+            </button>
           )}
-          {downloading ? t('materials.downloading') : t('materials.download')}
-        </button>
+          {canDelete && (
+            <button
+              type="button"
+              className="btn btn-quiet material-card-action material-card-delete"
+              onClick={(event) => onDelete(material, event.currentTarget)}
+              disabled={actionBusy || downloading}
+              aria-label={t('materials.deleteNamed').replace('{title}', title)}
+            >
+              <Trash2 size={17} strokeWidth={1.75} aria-hidden="true" />
+              {t('materials.deleteAction')}
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn btn-secondary material-download"
+            onClick={() => onDownload(material)}
+            disabled={downloading || actionBusy}
+            aria-label={t('materials.downloadNamed').replace('{title}', title)}
+          >
+            {downloading ? (
+              <Loader2 size={18} strokeWidth={1.75} className="spin" aria-hidden="true" />
+            ) : (
+              <Download size={18} strokeWidth={1.75} aria-hidden="true" />
+            )}
+            {downloading ? t('materials.downloading') : t('materials.download')}
+          </button>
+        </div>
       </footer>
 
       {downloadError && (
@@ -152,4 +185,3 @@ export default function MaterialCard({
     </article>
   );
 }
-
