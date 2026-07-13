@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { MessageCircle, Sun, Moon, UsersRound } from 'lucide-react';
+import { BookOpen, MessageCircle, Sun, Moon, UsersRound } from 'lucide-react';
 import { useLang } from '@/lib/LanguageProvider';
 import { supabase } from '@/lib/supabase';
 import Logo from './Logo';
@@ -37,6 +37,7 @@ export default function AppShell({ children, profile }) {
     { href: '/feed', label: t('header.feed') },
     { href: '/communities', label: t('header.communities'), icon: UsersRound },
     { href: '/professors', label: t('header.professors') },
+    { href: '/materials', label: t('header.materials'), icon: BookOpen },
     { href: '/messages', label: t('header.messages'), icon: MessageCircle },
     { href: '/profile', label: t('header.profile') },
   ];
