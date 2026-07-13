@@ -1,11 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { useProfile } from '@/lib/useProfile';
 import { useLang } from '@/lib/LanguageProvider';
 import { supabase } from '@/lib/supabase';
 import AppShell from '@/components/AppShell';
+import MaterialsModerationPanel from '@/components/materials/MaterialsModerationPanel';
+
+const ADMIN_TABS = ['verifications', 'ratings', 'materials'];
 
 function localeFor(lang) {
   if (lang === 'kk') return 'kk-KZ';
@@ -25,10 +29,28 @@ function formatAdminDate(value, lang) {
   }).format(new Date(value));
 }
 
+function logAdminDiagnostic(context, error) {
+  console.error('[Admin] request failed', {
+    context,
+    code: error?.code || null,
+    status: error?.status || null,
+  });
+}
+
 export default function AdminPage() {
   const router = useRouter();
-  const { profile, loading } = useProfile();
+  const {
+    user,
+    profile,
+    loading,
+    profileError,
+    refreshProfile,
+    isAdmin,
+  } = useProfile();
   const { lang, t } = useLang();
+  const tabRefs = useRef({});
+  const mountedRef = useRef(false);
+  const profileRetryBusyRef = useRef(false);
   const [activeTab, setActiveTab] = useState('verifications');
   const [statusFilter, setStatusFilter] = useState('pending');
   const [verificationRequests, setVerificationRequests] = useState([]);
@@ -37,22 +59,66 @@ export default function AdminPage() {
   const [loadingData, setLoadingData] = useState(true);
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectNote, setRejectNote] = useState('');
+  const [profileRetrying, setProfileRetrying] = useState(false);
 
   useEffect(() => {
-    if (!loading && profile && !profile.is_admin) {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      profileRetryBusyRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!loading && !profileError && profile && !isAdmin) {
       router.push('/feed');
     }
-  }, [loading, profile, router]);
+  }, [isAdmin, loading, profile, profileError, router]);
 
   useEffect(() => {
-    if (profile?.is_admin) {
+    if (isAdmin) {
       if (activeTab === 'verifications') {
         fetchVerificationRequests();
-      } else {
+      } else if (activeTab === 'ratings') {
         fetchPendingRatings();
       }
     }
-  }, [profile, activeTab, statusFilter]);
+  }, [isAdmin, activeTab, statusFilter]);
+
+  const handleTabKeyDown = (event, currentTab) => {
+    const currentIndex = ADMIN_TABS.indexOf(currentTab);
+    let nextIndex = currentIndex;
+
+    if (event.key === 'ArrowRight') {
+      nextIndex = (currentIndex + 1) % ADMIN_TABS.length;
+    } else if (event.key === 'ArrowLeft') {
+      nextIndex = (currentIndex - 1 + ADMIN_TABS.length) % ADMIN_TABS.length;
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = ADMIN_TABS.length - 1;
+    } else {
+      return;
+    }
+
+    event.preventDefault();
+    const nextTab = ADMIN_TABS[nextIndex];
+    setActiveTab(nextTab);
+    tabRefs.current[nextTab]?.focus();
+  };
+
+  const handleProfileRetry = async () => {
+    if (profileRetryBusyRef.current) return;
+    profileRetryBusyRef.current = true;
+    setProfileRetrying(true);
+
+    try {
+      await refreshProfile();
+    } finally {
+      profileRetryBusyRef.current = false;
+      if (mountedRef.current) setProfileRetrying(false);
+    }
+  };
 
   const fetchVerificationRequests = async () => {
     setLoadingData(true);
@@ -99,7 +165,7 @@ export default function AdminPage() {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Pending professor ratings query failed:', error);
+      logAdminDiagnostic('pending-ratings', error);
       setPendingRatings([]);
       setRatingsErrorKey('admin.ratingsLoadError');
     } else {
@@ -151,7 +217,7 @@ export default function AdminPage() {
       .eq('id', ratingId);
 
     if (error) {
-      console.error('Professor rating approval failed:', error);
+      logAdminDiagnostic('rating-approval', error);
       setRatingsErrorKey('admin.ratingApproveError');
       return;
     }
@@ -167,7 +233,7 @@ export default function AdminPage() {
       .eq('id', ratingId);
 
     if (error) {
-      console.error('Professor rating rejection failed:', error);
+      logAdminDiagnostic('rating-rejection', error);
       setRatingsErrorKey('admin.ratingRejectError');
       return;
     }
@@ -178,26 +244,47 @@ export default function AdminPage() {
   const getSignedUrl = async (documentUrl) => {
     if (!documentUrl) return null;
 
-    // Normalize path: strip "verifications/" prefix or full URL
-    let cleanPath = documentUrl;
-    if (cleanPath.includes('verifications/')) {
-      cleanPath = cleanPath.split('verifications/').pop();
-    }
-    if (cleanPath.startsWith('http')) {
-      const url = new URL(cleanPath);
-      cleanPath = url.pathname.split('/').slice(-1)[0];
-    }
+    try {
+      // Normalize path: strip "verifications/" prefix or full URL
+      let cleanPath = documentUrl;
+      if (cleanPath.includes('verifications/')) {
+        cleanPath = cleanPath.split('verifications/').pop();
+      }
+      if (cleanPath.startsWith('http')) {
+        const url = new URL(cleanPath);
+        cleanPath = url.pathname.split('/').slice(-1)[0];
+      }
 
-    const { data, error } = await supabase.storage
-      .from('verifications')
-      .createSignedUrl(cleanPath, 600);
+      const { data, error } = await supabase.storage
+        .from('verifications')
+        .createSignedUrl(cleanPath, 600);
 
-    if (error) {
-      return { error: error.message };
+      if (error || !data?.signedUrl) {
+        logAdminDiagnostic(
+          'verification-document-signing',
+          error || { code: 'signed_url_unavailable' }
+        );
+        return { error: true };
+      }
+
+      return { signedUrl: data.signedUrl };
+    } catch (error) {
+      logAdminDiagnostic('verification-document-signing', error);
+      return { error: true };
     }
-
-    return { signedUrl: data?.signedUrl };
   };
+
+  if (profileError || profileRetrying) {
+    return (
+      <AdminProfileState
+        title={t('admin.profileLoadErrorTitle')}
+        description={t('admin.profileLoadErrorText')}
+        retrying={profileRetrying}
+        onRetry={handleProfileRetry}
+        t={t}
+      />
+    );
+  }
 
   if (loading) {
     return (
@@ -207,7 +294,19 @@ export default function AdminPage() {
     );
   }
 
-  if (!profile?.is_admin) {
+  if (user && !profile) {
+    return (
+      <AdminProfileState
+        title={t('admin.profileMissingTitle')}
+        description={t('admin.profileMissingText')}
+        retrying={profileRetrying}
+        onRetry={handleProfileRetry}
+        t={t}
+      />
+    );
+  }
+
+  if (!isAdmin) {
     return null;
   }
 
@@ -218,23 +317,58 @@ export default function AdminPage() {
           {t('admin.title')}
         </h1>
 
-        <div className="admin-tabs">
+        <div className="admin-tabs" role="tablist" aria-label={t('admin.tabsLabel')}>
           <button
+            ref={(node) => { tabRefs.current.verifications = node; }}
+            id="admin-tab-verifications"
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'verifications'}
+            aria-controls="admin-panel-verifications"
+            tabIndex={activeTab === 'verifications' ? 0 : -1}
             className={`admin-tab ${activeTab === 'verifications' ? 'active' : ''}`}
             onClick={() => setActiveTab('verifications')}
+            onKeyDown={(event) => handleTabKeyDown(event, 'verifications')}
           >
             {t('admin.verifications')}
           </button>
           <button
+            ref={(node) => { tabRefs.current.ratings = node; }}
+            id="admin-tab-ratings"
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'ratings'}
+            aria-controls="admin-panel-ratings"
+            tabIndex={activeTab === 'ratings' ? 0 : -1}
             className={`admin-tab ${activeTab === 'ratings' ? 'active' : ''}`}
             onClick={() => setActiveTab('ratings')}
+            onKeyDown={(event) => handleTabKeyDown(event, 'ratings')}
           >
             {t('admin.ratings')}
+          </button>
+          <button
+            ref={(node) => { tabRefs.current.materials = node; }}
+            id="admin-tab-materials"
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'materials'}
+            aria-controls="admin-panel-materials"
+            tabIndex={activeTab === 'materials' ? 0 : -1}
+            className={`admin-tab ${activeTab === 'materials' ? 'active' : ''}`}
+            onClick={() => setActiveTab('materials')}
+            onKeyDown={(event) => handleTabKeyDown(event, 'materials')}
+          >
+            {t('admin.materials')}
           </button>
         </div>
 
         {activeTab === 'verifications' && (
-          <>
+          <section
+            id="admin-panel-verifications"
+            role="tabpanel"
+            aria-labelledby="admin-tab-verifications"
+            tabIndex={0}
+          >
             <div className="status-filters">
               <button
                 className={`filter-btn ${statusFilter === 'pending' ? 'active' : ''}`}
@@ -283,11 +417,16 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
-          </>
+          </section>
         )}
 
         {activeTab === 'ratings' && (
-          <>
+          <section
+            id="admin-panel-ratings"
+            role="tabpanel"
+            aria-labelledby="admin-tab-ratings"
+            tabIndex={0}
+          >
             {loadingData ? (
               <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>
                 {t('common.loading')}
@@ -355,10 +494,72 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
-          </>
+          </section>
+        )}
+
+        {activeTab === 'materials' && (
+          <section
+            id="admin-panel-materials"
+            role="tabpanel"
+            aria-labelledby="admin-tab-materials"
+            tabIndex={0}
+          >
+            <MaterialsModerationPanel isAdmin={isAdmin} lang={lang} t={t} />
+          </section>
         )}
       </div>
     </AppShell>
+  );
+}
+
+function AdminProfileState({ title, description, retrying, onRetry, t }) {
+  return (
+    <main
+      style={{
+        minHeight: '100vh',
+        display: 'grid',
+        placeItems: 'center',
+        padding: 24,
+        background: 'var(--surface)',
+      }}
+    >
+      <section
+        className="surface-card"
+        role="alert"
+        style={{
+          width: 'min(100%, 520px)',
+          padding: 32,
+          textAlign: 'center',
+        }}
+      >
+        <AlertCircle
+          size={30}
+          strokeWidth={1.75}
+          aria-hidden="true"
+          style={{ color: 'var(--danger)', marginBottom: 16 }}
+        />
+        <h1 style={{ margin: 0, color: 'var(--ink)', fontSize: 24, letterSpacing: 0 }}>
+          {title}
+        </h1>
+        <p style={{ margin: '12px 0 22px', color: 'var(--muted)', lineHeight: 1.6 }}>
+          {description}
+        </p>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={onRetry}
+          disabled={retrying}
+          aria-busy={retrying}
+        >
+          {retrying ? (
+            <Loader2 size={18} strokeWidth={1.75} className="spin" aria-hidden="true" />
+          ) : (
+            <RefreshCw size={18} strokeWidth={1.75} aria-hidden="true" />
+          )}
+          {retrying ? t('admin.profileRetrying') : t('admin.profileRetry')}
+        </button>
+      </section>
+    </main>
   );
 }
 
@@ -378,10 +579,15 @@ function VerificationCard({
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    let active = true;
+    setError(null);
+    setDocumentData(null);
+
     if (request.document_url) {
       getSignedUrl(request.document_url).then(result => {
+        if (!active) return;
         if (result?.error) {
-          setError(result.error);
+          setError('admin.verificationDocumentLoadError');
         } else if (result?.signedUrl) {
           // Detect file type from original document_url
           const ext = request.document_url.toLowerCase().split('.').pop();
@@ -390,6 +596,10 @@ function VerificationCard({
         }
       });
     }
+
+    return () => {
+      active = false;
+    };
   }, [request.document_url]);
 
   return (
@@ -414,7 +624,7 @@ function VerificationCard({
             {t('admin.studentId')}:
           </div>
           <div style={{ padding: 16, background: 'var(--red-tint)', color: 'var(--red)', borderRadius: 8, fontSize: 14 }}>
-            Error: {error}
+            {t(error)}
           </div>
         </div>
       )}
