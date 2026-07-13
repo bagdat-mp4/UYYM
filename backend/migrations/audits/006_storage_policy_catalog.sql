@@ -61,6 +61,8 @@ FROM policy_catalog
 ORDER BY policy_name;
 
 -- 2. Authenticated role membership and effective inheritance closure.
+-- PostgreSQL 16+ uses each membership edge's inherit_option. Older versions,
+-- where that catalog field is absent, fall back to the member role's INHERIT.
 WITH RECURSIVE membership_closure AS (
   SELECT
     r.oid,
@@ -102,11 +104,10 @@ inherited_closure AS (
   FROM inherited_closure AS member_role
   JOIN pg_auth_members AS membership ON membership.member = member_role.oid
   JOIN pg_roles AS parent ON parent.oid = membership.roleid
-  WHERE member_role.rolinherit
-    AND coalesce(
-      (to_jsonb(membership) ->> 'inherit_option')::boolean,
-      true
-    )
+  WHERE coalesce(
+    (to_jsonb(membership) ->> 'inherit_option')::boolean,
+    member_role.rolinherit
+  )
 )
 SELECT
   member_role.rolname::text AS role_name,
@@ -205,11 +206,10 @@ inherited_closure AS (
   FROM inherited_closure AS member_role
   JOIN pg_auth_members AS membership ON membership.member = member_role.oid
   JOIN pg_roles AS parent ON parent.oid = membership.roleid
-  WHERE member_role.rolinherit
-    AND coalesce(
-      (to_jsonb(membership) ->> 'inherit_option')::boolean,
-      true
-    )
+  WHERE coalesce(
+    (to_jsonb(membership) ->> 'inherit_option')::boolean,
+    member_role.rolinherit
+  )
 ),
 role_rows AS (
   SELECT

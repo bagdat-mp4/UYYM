@@ -30,10 +30,12 @@ level and says its exact applied SQL is missing. A read-only anonymous Storage
 API check did not discover `materials` and returned `Bucket not found`. Because
 private bucket metadata can be hidden from anonymous callers, that response does
 not prove absence. Migration 006 handles both cases safely: it creates the bucket
-when absent and validates, without changing, an existing bucket. The anonymous
-client receives PostgreSQL permission denied for `materials`, but cannot inspect
-the live authenticated policy catalog. Deployment therefore requires an exact
-catalog snapshot from
+when absent. If a bucket with ID `materials` already exists, the migration first
+requires its name to remain `materials`, then hardens it in place as described
+below without deleting the bucket or its objects. The anonymous client receives
+PostgreSQL permission denied for `materials`, but cannot inspect the live
+authenticated policy catalog. Deployment therefore requires an exact catalog
+snapshot from
 `backend/migrations/audits/006_storage_policy_catalog.sql`. Migration 006 now
 contains the manually reviewed live snapshot documented below and aborts before
 any change if the target catalog differs. It never drops unrelated policies. Its
@@ -112,12 +114,26 @@ The bucket configuration is exact:
 - `public = false`
 - Maximum object size: 25 MiB (`26,214,400` bytes)
 - Allowed MIME types:
-  - PDF
-  - DOC and DOCX
-  - PPT and PPTX
-  - XLS and XLSX
-  - plain text
-  - PNG, JPEG, and WebP
+  - `application/pdf`
+  - `application/msword`
+  - `application/vnd.openxmlformats-officedocument.wordprocessingml.document`
+  - `application/vnd.ms-powerpoint`
+  - `application/vnd.openxmlformats-officedocument.presentationml.presentation`
+  - `application/vnd.ms-excel`
+  - `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+  - `text/plain`
+  - `image/png`
+  - `image/jpeg`
+  - `image/webp`
+
+When the bucket is absent, the migration creates it with this configuration. If
+ID `materials` exists with any other name, the migration aborts rather than
+renaming it. Otherwise it updates only `public`, `file_size_limit`, and
+`allowed_mime_types`. It then re-reads the bucket and verifies its name, private
+state, exact 25 MiB limit, and MIME allowlist. MIME comparison uses equal
+cardinality plus bidirectional array containment, so ordering is ignored while
+missing, additional, or duplicate entries fail verification. The bucket and its
+existing objects are never deleted.
 
 Executable files, scripts, HTML, SVG, archives, and unknown MIME types are not
 allowed. The database also requires the filename extension and MIME type to be
@@ -144,8 +160,29 @@ schemes, path traversal, nested arbitrary folders, and cross-user paths.
 
 ## RLS Model
 
-No Materials Bank privileges are granted to `anon`. Authenticated clients have
-table privileges, with every row operation constrained by RLS.
+No Materials Bank privileges are granted to `PUBLIC` or `anon`. Authenticated
+clients receive `SELECT`, `UPDATE`, and `DELETE`, with every row operation
+constrained by RLS. Their `INSERT` grant includes only `uploader_id`,
+`university_id`, `professor_id`, `title`, `course_name`, `file_path`,
+`description`, `file_name`, `mime_type`, `file_size`, `material_type`, and
+`status`. It explicitly excludes generated `id` and server-defaulted
+`created_at`.
+
+### Reviewed Legacy Policy Replacement
+
+Before any schema or Storage change, migration 006 compares every
+security-relevant catalog field of the three reviewed legacy policies:
+
+| Policy | Mode / roles | Operation | Exact expression |
+| --- | --- | --- | --- |
+| `mat_read` | PERMISSIVE / `PUBLIC` | SELECT | `USING (auth.role() = 'authenticated'::text)` |
+| `mat_insert` | PERMISSIVE / `PUBLIC` | INSERT | `WITH CHECK ((auth.uid() = uploader_id) AND is_verified())` |
+| `mat_delete` | PERMISSIVE / `PUBLIC` | DELETE | `USING (auth.uid() = uploader_id)` |
+
+The exact three-policy set is accepted on the first run; an empty legacy set is
+accepted on a rerun after replacement. A partial or changed set aborts. Only
+after validation, the migration drops these three legacy policies immediately
+before deterministically creating the six Materials policies below.
 
 ### public.materials Policies
 
@@ -169,7 +206,7 @@ from silently replacing attribution or file metadata.
 | --- | --- | --- |
 | `materials_storage_insert` | INSERT | Verified user, exact own-folder path, and matching own pending `materials` row required. |
 | `materials_storage_read` | SELECT | A matching `materials` row is always required. The row must be approved, uploader-owned, or viewed by a platform admin. Orphans cannot receive signed read URLs, including for admins. |
-| `materials_storage_delete` | DELETE | Uploader may delete a matching own pending object or an orphan under their own UUID folder; platform admin may delete any object in the bucket. Approved and rejected objects remain protected while their row exists. |
+| `materials_storage_delete` | DELETE | Uploader may delete a matching own pending object or an orphan only at an exact `{auth.uid()}/{uuid}/{filename}` path; platform admin may delete any object in the bucket. Approved and rejected objects remain protected while their row exists. |
 
 No Storage UPDATE policy exists. Files cannot be overwritten after upload. A
 replacement must use a new pending material row and a new upload UUID.
@@ -192,6 +229,11 @@ The helper returns two machine-ready JSON values:
 - The complete PostgreSQL membership graph reachable from `authenticated`, its
   effective inherited-role closure, role security flags, and membership options
   from `pg_roles` and `pg_auth_members`. `PUBLIC` access is recorded as implicit.
+
+For effective inheritance, PostgreSQL 16+ uses each membership edge's
+`inherit_option` directly. On older PostgreSQL versions where that field is
+absent, the helper and migration fall back to the member role's `rolinherit`
+value. They do not require both values to be true on PostgreSQL 16+.
 
 Copy those reviewed values into the clearly marked exact allowlist section of
 migration 006. PostgreSQL's canonical expressions are compared unchanged so
@@ -365,9 +407,11 @@ The frontend must not:
   audit history. Those should be added only with a real moderation product flow.
 - Migration 006 intentionally aborts when its exact reviewed live Storage policy
   or role snapshot drifts, or when legacy rows, unknown Materials RLS policies,
-  incompatible foreign keys, or a mismatched bucket require manual review. It
-  never deletes data or unrelated policies; only migration-owned policies and
-  its trigger are replaced.
+  incompatible foreign keys, an unexpected bucket name, or a failed final bucket
+  verification requires manual review. Existing configuration drift in the
+  three managed bucket fields is corrected in place. The migration never deletes
+  data, the bucket, its objects, or unrelated policies; only migration-owned
+  policies and its trigger are replaced.
 
 No seed materials, fake counts, frontend routes, likes, comments, ratings,
 folders, version history, OCR, AI summaries, plagiarism checks, or paid-content
